@@ -27,7 +27,7 @@ public class NotionClient : BlackBirdRestClient
         return new(error.Message);
     }
 
-    public async Task<List<T>> SearchAll<T>(AuthenticationCredentialsProvider[] creds, string type)
+    public async Task<List<T>> SearchAll<T>(AuthenticationCredentialsProvider[] creds, string type, string? query = null)
     {
         string? cursor = null;
 
@@ -35,7 +35,7 @@ public class NotionClient : BlackBirdRestClient
         do
         {
             var request = new NotionRequest(ApiEndpoints.Search, Method.Post, creds)
-                .WithJsonBody(new FilterRequest(type, cursor), JsonSettings);
+                .WithJsonBody(new FilterRequest(type, cursor, query), JsonSettings);
             var response = await ExecuteWithErrorHandling<SearchResponse<T>>(request);
 
             results.AddRange(response.Results);

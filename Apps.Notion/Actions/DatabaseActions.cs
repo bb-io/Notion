@@ -2,6 +2,7 @@ using Apps.Notion.Api;
 using Apps.Notion.Constants;
 using Apps.Notion.Invocables;
 using Apps.Notion.Models.Entities;
+using Apps.Notion.Models.Request;
 using Apps.Notion.Models.Request.DataBase;
 using Apps.Notion.Models.Response.DataBase;
 using Blackbird.Applications.Sdk.Common;
@@ -31,6 +32,16 @@ public class DatabaseActions : NotionInvocable
     [Action("Create database", Description = "Create a new database")]
     public async Task<DatabaseEntity> CreateDatabase([ActionParameter] CreateDatabaseInput input)
     {
+        var mandatoryProperties = new List<PropertyRequest>()
+        {
+            new()
+            {
+                Name = "Name",
+                Type = "title"
+            }
+        };
+        input.Properties = input.Properties.Concat(mandatoryProperties);
+        
         var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds)
             .WithJsonBody(new CreateDatabaseRequest(input), JsonConfig.Settings);
 
