@@ -5,9 +5,9 @@ namespace Apps.Notion.Models.Request.Page;
 public class CreatePageRequest
 {
     public ParentEntity Parent { get; set; }
-    
-    public object Properties { get; set; }
-    
+
+    public Dictionary<string, Dictionary<string, object>> Properties { get; set; }
+
     public CreatePageRequest(CreatePageInput input)
     {
         Parent = new();
@@ -17,6 +17,24 @@ public class CreatePageRequest
         if (input.DatabaseId is not null)
             Parent.DatabaseId = input.DatabaseId;
 
-        Properties = new();
+        Properties = new()
+        {
+            ["title"] = new()
+            {
+                {
+                    "title",
+                    new[]
+                    {
+                        new TitleModel()
+                        {
+                            Text = new()
+                            {
+                                Content = input.Title
+                            }
+                        }
+                    }
+                }
+            }
+        };
     }
 }

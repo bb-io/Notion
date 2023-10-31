@@ -12,5 +12,5 @@ public class CreateDatabaseInput
     
     public string Title { get; set; }
     
-    public IEnumerable<PropertyRequest> Properties { get; set; }
+    public IEnumerable<PropertyRequest>? Properties { get; set; }
 }

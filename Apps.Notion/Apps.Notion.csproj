@@ -16,11 +16,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="Models\Request\Comment\"/>
-        <Folder Include="Models\Response\Comment\"/>
-    </ItemGroup>
-
-    <ItemGroup>
         <EmbeddedResource CopyToOutputDirectory="Always" Include="image\icon.png"/>
     </ItemGroup>
 

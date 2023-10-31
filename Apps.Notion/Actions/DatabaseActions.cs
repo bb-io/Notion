@@ -19,29 +19,33 @@ public class DatabaseActions : NotionInvocable
     public DatabaseActions(InvocationContext invocationContext) : base(invocationContext)
     {
     }
-    
+
     [Action("List databases", Description = "List all databases")]
     public async Task<ListDatabasesResponse> ListDatabases()
     {
         var items = await Client.SearchAll<DatabaseResponse>(Creds, "database");
         var databases = items.Select(x => new DatabaseEntity(x)).ToArray();
-        
+
         return new(databases);
     }
-    
+
     [Action("Create database", Description = "Create a new database")]
     public async Task<DatabaseEntity> CreateDatabase([ActionParameter] CreateDatabaseInput input)
     {
-        var mandatoryProperties = new List<PropertyRequest>()
+        input.Properties ??= new List<PropertyRequest>();
+        if (input.Properties.All(x => x.Type != "title"))
         {
-            new()
+            var mandatoryProperties = new List<PropertyRequest>()
             {
-                Name = "Name",
-                Type = "title"
-            }
-        };
-        input.Properties = input.Properties.Concat(mandatoryProperties);
-        
+                new()
+                {
+                    Name = "Name",
+                    Type = "title"
+                }
+            };
+            input.Properties = input.Properties.Concat(mandatoryProperties);
+        }
+
         var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds)
             .WithJsonBody(new CreateDatabaseRequest(input), JsonConfig.Settings);
 

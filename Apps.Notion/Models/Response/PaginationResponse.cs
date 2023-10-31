@@ -1,6 +1,6 @@
 namespace Apps.Notion.Models.Response;
 
-public class SearchResponse<T>
+public class PaginationResponse<T>
 {
     public IEnumerable<T> Results { get; set; }
     

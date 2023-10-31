@@ -36,7 +36,27 @@ public class NotionClient : BlackBirdRestClient
         {
             var request = new NotionRequest(ApiEndpoints.Search, Method.Post, creds)
                 .WithJsonBody(new FilterRequest(type, cursor, query), JsonSettings);
-            var response = await ExecuteWithErrorHandling<SearchResponse<T>>(request);
+            var response = await ExecuteWithErrorHandling<PaginationResponse<T>>(request);
+
+            results.AddRange(response.Results);
+            cursor = response.NextCursor;
+        } while (cursor is not null);
+
+        return results;
+    }
+    
+    public async Task<List<T>> Paginate<T>(RestRequest request)
+    {
+        string? cursor = null;
+        var baseUrl = request.Resource;
+        
+        var results = new List<T>();
+        do
+        {
+            if (cursor is not null)
+                request.Resource = baseUrl.SetQueryParameter("start_cursor", cursor);
+            
+            var response = await ExecuteWithErrorHandling<PaginationResponse<T>>(request);
 
             results.AddRange(response.Results);
             cursor = response.NextCursor;
