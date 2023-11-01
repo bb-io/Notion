@@ -2,13 +2,16 @@ using Apps.Notion.Api;
 using Apps.Notion.Constants;
 using Apps.Notion.Invocables;
 using Apps.Notion.Models.Entities;
+using Apps.Notion.Models.Request.Block;
 using Apps.Notion.Models.Request.Page;
 using Apps.Notion.Models.Response.Page;
+using Apps.Notion.Utils;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Utils.Extensions.Http;
 using RestSharp;
+using File = Blackbird.Applications.Sdk.Common.Files.File;
 
 namespace Apps.Notion.Actions;
 
@@ -24,10 +27,10 @@ public class PageActions : NotionInvocable
     {
         var items = await Client.SearchAll<PageResponse>(Creds, "page");
         var pages = items.Select(x => new PageEntity(x)).ToArray();
-        
+
         return new(pages);
     }
-    
+
     [Action("Create page", Description = "Create a new page")]
     public async Task<PageEntity> CreatePage([ActionParameter] CreatePageInput input)
     {
@@ -36,12 +39,33 @@ public class PageActions : NotionInvocable
 
         if (input.PageId is null && input.DatabaseId is null)
             throw new("Page must have a parent, you should specify either parent page or parent database");
-        
+
         var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
             .WithJsonBody(new CreatePageRequest(input), JsonConfig.Settings);
 
         var response = await Client.ExecuteWithErrorHandling<PageResponse>(request);
         return new(response);
+    }
+
+    [Action("Create page from HTML", Description = "Create a new page from HTML")]
+    public async Task<PageEntity> CreatePageFromHtml(
+        [ActionParameter] CreatePageInput input,
+        [ActionParameter] [Display("HTML file")]
+        File file)
+    {
+        var page = await CreatePage(input);
+        var blocks = NotionHtmlParser.ParseHtml(file.Bytes);
+
+        var endpoint = $"{ApiEndpoints.Blocks}/{page.Id}/children";
+        var request = new NotionRequest(endpoint, Method.Patch, Creds)
+            .WithJsonBody(new ChildrenRequest()
+            {
+                Children = blocks
+            }, JsonConfig.Settings);
+
+        var res = await Client.ExecuteWithErrorHandling(request);
+
+        return page;
     }
 
     [Action("Get page", Description = "Get details of a specific page")]
