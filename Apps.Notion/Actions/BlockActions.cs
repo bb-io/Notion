@@ -7,6 +7,8 @@ using Apps.Notion.Models.Response.Block;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
+using Blackbird.Applications.Sdk.Utils.Extensions.Http;
+using Newtonsoft.Json.Linq;
 using RestSharp;
 
 namespace Apps.Notion.Actions;
@@ -48,5 +50,26 @@ public class BlockActions : NotionInvocable
         var request = new NotionRequest(endpoint, Method.Delete, Creds);
 
         return Client.ExecuteWithErrorHandling(request);
+    }
+
+    internal Task AppendBlockChildren(string blockId, JObject[] blocks)
+    {
+        var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
+        var request = new NotionRequest(endpoint, Method.Patch, Creds)
+            .WithJsonBody(new ChildrenRequest()
+            {
+                Children = blocks
+            }, JsonConfig.Settings);
+
+        return Client.ExecuteWithErrorHandling(request);
+    }
+    
+    internal async Task DeleteAllBlockChildren(string blockId, JObject[] blocks)
+    {
+        var children = await ListBlockChildren(new()
+        {
+            BlockId = blockId
+        });
+
     }
 }

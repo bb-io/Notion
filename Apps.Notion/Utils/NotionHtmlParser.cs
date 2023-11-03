@@ -45,8 +45,10 @@ public static class NotionHtmlParser
         foreach (var block in blocks)
         {
             var type = block["type"]!.ToString();
-            var typeData = block[type];
-            var richText = JsonConvert.DeserializeObject<TitleModel[]>(typeData["rich_text"].ToString());
+            var typeData = block[type]!;
+            
+            var textObj = typeData["text"]?.ToString() ?? typeData["rich_text"]!.ToString();
+            var richText = JsonConvert.DeserializeObject<TitleModel[]>(textObj)!;
 
             foreach (var titleModel in richText)
             {

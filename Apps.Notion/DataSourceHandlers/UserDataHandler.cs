@@ -1,8 +1,6 @@
 using Apps.Notion.Api;
 using Apps.Notion.Constants;
 using Apps.Notion.Invocables;
-using Apps.Notion.Models.Entities;
-using Apps.Notion.Models.Response.Page;
 using Apps.Notion.Models.Response.User;
 using Blackbird.Applications.Sdk.Common.Dynamic;
 using Blackbird.Applications.Sdk.Common.Invocation;
