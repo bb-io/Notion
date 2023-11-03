@@ -1,6 +1,18 @@
+using Apps.Notion.DataSourceHandlers;
+using Blackbird.Applications.Sdk.Common;
+using Blackbird.Applications.Sdk.Common.Dynamic;
+
 namespace Apps.Notion.Models.Request.Page;
 
 public class CreatePageInput
 {
-    
+    public string Title { get; set; }
+
+    [Display("Parent page ID")]
+    [DataSource(typeof(PageDataHandler))]
+    public string? PageId { get; set; }
+
+    [Display("Parent database ID")]
+    [DataSource(typeof(DatabaseDataHandler))]
+    public string? DatabaseId { get; set; }
 }

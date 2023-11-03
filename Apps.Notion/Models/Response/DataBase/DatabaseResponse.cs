@@ -1,3 +1,5 @@
+using Apps.Notion.Models.Entities;
+
 namespace Apps.Notion.Models.Response.DataBase;
 
 public class DatabaseResponse
@@ -6,13 +8,13 @@ public class DatabaseResponse
 
     public DateTime CreatedTime { get; set; }
     
-    public DateTime LastEditedTime { get; set; }
+    public DateTime? LastEditedTime { get; set; }
     
-    public IEnumerable<TitleResponse> Title { get; set; }
+    public IEnumerable<TitleModel>? Title { get; set; }
     
     public Dictionary<string, PropertyResponse> Properties { get; set; }
     
-    public DatabaseParentResponse Parent { get; set; }
+    public ParentEntity Parent { get; set; }
     
     public string Url { get; set; }
     

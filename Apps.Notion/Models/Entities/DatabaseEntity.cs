@@ -13,9 +13,9 @@ public class DatabaseEntity
     public DateTime CreatedTime { get; set; }
 
     [Display("Last edited time")]
-    public DateTime LastEditedTime { get; set; }
+    public DateTime? LastEditedTime { get; set; }
 
-    public string? Title { get; set; }
+    public string Title { get; set; }
 
     public IEnumerable<PropertyResponse> Properties { get; set; }
 
@@ -24,14 +24,17 @@ public class DatabaseEntity
 
     public bool Archived { get; set; }
     
+    public ParentEntity Parent { get; set; }
+    
     public DatabaseEntity(DatabaseResponse response)
     {
         Id = response.Id;
         CreatedTime = response.CreatedTime;
         LastEditedTime = response.LastEditedTime;
-        Title = response.Title.FirstOrDefault()?.PlainText;
+        Title = response.Title?.FirstOrDefault()?.PlainText ?? "Untitled";
         Properties = response.Properties.Values;
         Url = response.Url;
         Archived = response.Archived;
+        Parent = response.Parent;
     }
 }
