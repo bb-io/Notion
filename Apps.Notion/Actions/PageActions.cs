@@ -3,12 +3,14 @@ using System.Text;
 using Apps.Notion.Api;
 using Apps.Notion.Constants;
 using Apps.Notion.Invocables;
+using Apps.Notion.Models;
 using Apps.Notion.Models.Entities;
 using Apps.Notion.Models.Request;
-using Apps.Notion.Models.Request.Block;
 using Apps.Notion.Models.Request.Page;
+using Apps.Notion.Models.Request.Page.Properties;
 using Apps.Notion.Models.Response;
 using Apps.Notion.Models.Response.Page;
+using Apps.Notion.Models.Response.Page.Properties;
 using Apps.Notion.Utils;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
@@ -16,7 +18,6 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Utils.Extensions.Http;
 using Newtonsoft.Json.Linq;
 using RestSharp;
-using File = Blackbird.Applications.Sdk.Common.Files.File;
 
 namespace Apps.Notion.Actions;
 
@@ -137,5 +138,78 @@ public class PageActions : NotionInvocable
             });
 
         return Client.ExecuteWithErrorHandling(request);
+    }
+
+    [Action("Get page string property", Description = "Get value of a string page property")]
+    public async Task<StringPropertyResponse> GetStringProperty([ActionParameter] PageStringPropertyRequest input)
+    {
+        var response = await GetPageProperty(input.PageId, input.PropertyId);
+
+        if (response["results"] is not null)
+            response = response["results"]!.First().ToObject<JObject>()!;
+
+        var value = response["type"]!.ToString() switch
+        {
+            "url" => response["url"]!.ToString(),
+            "title" => response["title"]!.ToObject<TitleModel>()!.PlainText,
+            "email" => response["email"]!.ToString(),
+            "phone_number" => response["phone_number"]!.ToString(),
+            "status" => response["status"]!["name"]!.ToString(),
+            "created_by" => response["created_by"]!["id"]!.ToString(),
+            "last_edited_by" => response["last_edited_by"]!["id"]!.ToString(),
+            "select" => response["select"]!["name"]!.ToString(),
+            "rich_text" => response["rich_text"]!.ToObject<TitleModel>()!.PlainText,
+            _ => throw new ArgumentException("Given ID does not stand for a string value property")
+        };
+
+        return new()
+        {
+            PropertyValue = value
+        };
+    }
+
+    [Action("Get page number property", Description = "Get value of a number page property")]
+    public async Task<NumberPropertyResponse> GetNumberProperty([ActionParameter] PageNumberPropertyRequest input)
+    {
+        var response = await GetPageProperty(input.PageId, input.PropertyId);
+
+        var value = response["type"]!.ToString() switch
+        {
+            "number" => response["number"]!.ToObject<decimal>(),
+            "unique_id" => response["unique_id"]!["number"]!.ToObject<decimal>(),
+            _ => throw new ArgumentException("Given ID does not stand for a number value property")
+        };
+
+        return new()
+        {
+            PropertyValue = value
+        };
+    }
+    
+    [Action("Get page date property", Description = "Get value of a date page property")]
+    public async Task<DatePropertyResponse> GetDateProperty([ActionParameter] PageDatePropertyRequest input)
+    {
+        var response = await GetPageProperty(input.PageId, input.PropertyId);
+
+        var value = response["type"]!.ToString() switch
+        {
+            "created_time" => response["created_time"]!.ToObject<DateTime>(),
+            "date" => response["date"]!["start"]!.ToObject<DateTime>(),
+            "last_edited_time" => response["last_edited_time"]!.ToObject<DateTime>(),
+            _ => throw new ArgumentException("Given ID does not stand for a date value property")
+        };
+
+        return new()
+        {
+            PropertyValue = value
+        };
+    }
+
+    private Task<JObject> GetPageProperty(string pageId, string propertyId)
+    {
+        var endpoint = $"{ApiEndpoints.Pages}/{pageId}/properties/{propertyId}";
+        var request = new NotionRequest(endpoint, Method.Get, Creds);
+
+        return Client.ExecuteWithErrorHandling<JObject>(request);
     }
 }

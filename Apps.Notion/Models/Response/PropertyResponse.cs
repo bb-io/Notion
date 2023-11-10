@@ -1,3 +1,5 @@
+using Newtonsoft.Json.Linq;
+
 namespace Apps.Notion.Models.Response;
 
 public class PropertyResponse
@@ -7,4 +9,16 @@ public class PropertyResponse
     public string Name { get; set; }
     
     public string Type { get; set; }
+
+    public PropertyResponse()
+    {
+        
+    }
+
+    public PropertyResponse(KeyValuePair<string, JObject> pair)
+    {
+        Name = pair.Key;
+        Type = pair.Value["type"]!.ToString();
+        Id = pair.Value["id"]!.ToString();
+    }
 }
