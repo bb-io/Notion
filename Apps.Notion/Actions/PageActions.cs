@@ -2,7 +2,6 @@ using System.Net.Mime;
 using System.Text;
 using Apps.Notion.Api;
 using Apps.Notion.Constants;
-using Apps.Notion.Extensions;
 using Apps.Notion.Invocables;
 using Apps.Notion.Models;
 using Apps.Notion.Models.Entities;
