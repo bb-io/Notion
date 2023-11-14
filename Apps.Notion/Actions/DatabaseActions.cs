@@ -5,6 +5,7 @@ using Apps.Notion.Models.Entities;
 using Apps.Notion.Models.Request;
 using Apps.Notion.Models.Request.DataBase;
 using Apps.Notion.Models.Response.DataBase;
+using Apps.Notion.Models.Response.Page;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
@@ -27,6 +28,18 @@ public class DatabaseActions : NotionInvocable
         var databases = items.Select(x => new DatabaseEntity(x)).ToArray();
 
         return new(databases);
+    }
+    
+    [Action("List database records", Description = "List all database records")]
+    public async Task<ListPagesResponse> ListDatabaseRecords([ActionParameter] DatabaseRequest database)
+    {
+        var endpoint = $"{ApiEndpoints.Databases}/{database.DatabaseId}/query";
+        var request = new NotionRequest(endpoint, Method.Post, Creds);
+
+        var response = await Client.Paginate<PageResponse>(request);
+        var pages = response.Select(x => new PageEntity(x)).ToArray();
+
+        return new(pages);
     }
 
     [Action("Create database", Description = "Create a new database")]
