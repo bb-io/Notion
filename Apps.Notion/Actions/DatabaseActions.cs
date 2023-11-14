@@ -22,10 +22,13 @@ public class DatabaseActions : NotionInvocable
     }
 
     [Action("List databases", Description = "List all databases")]
-    public async Task<ListDatabasesResponse> ListDatabases()
+    public async Task<ListDatabasesResponse> ListDatabases([ActionParameter] ListRequest input)
     {
         var items = await Client.SearchAll<DatabaseResponse>(Creds, "database");
-        var databases = items.Select(x => new DatabaseEntity(x)).ToArray();
+        var databases = items
+            .Select(x => new DatabaseEntity(x))
+            .Where(x => x.LastEditedTime > (input.EditedSince ?? default))
+            .ToArray();
 
         return new(databases);
     }

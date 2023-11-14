@@ -33,10 +33,13 @@ public class PageActions : NotionInvocable
     }
 
     [Action("List pages", Description = "List all pages")]
-    public async Task<ListPagesResponse> ListPages()
+    public async Task<ListPagesResponse> ListPages([ActionParameter] ListRequest input)
     {
         var items = await Client.SearchAll<PageResponse>(Creds, "page");
-        var pages = items.Select(x => new PageEntity(x)).ToArray();
+        var pages = items
+            .Select(x => new PageEntity(x))
+            .Where(x => x.LastEditedTime > (input.EditedSince ?? default))
+            .ToArray();
 
         return new(pages);
     }
