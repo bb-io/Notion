@@ -39,6 +39,7 @@ public class PageActions : NotionInvocable
         var pages = items
             .Select(x => new PageEntity(x))
             .Where(x => x.LastEditedTime > (input.EditedSince ?? default))
+            .Where(x => x.CreatedTime > (input.CreatedSince ?? default))
             .ToArray();
 
         return new(pages);
