@@ -63,13 +63,4 @@ public class BlockActions : NotionInvocable
 
         return Client.ExecuteWithErrorHandling(request);
     }
-    
-    internal async Task DeleteAllBlockChildren(string blockId, JObject[] blocks)
-    {
-        var children = await ListBlockChildren(new()
-        {
-            BlockId = blockId
-        });
-
-    }
 }

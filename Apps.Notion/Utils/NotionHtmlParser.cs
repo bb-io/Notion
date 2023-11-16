@@ -47,7 +47,11 @@ public static class NotionHtmlParser
             var type = block["type"]!.ToString();
             var typeData = block[type]!;
             
-            var textObj = typeData["text"]?.ToString() ?? typeData["rich_text"]!.ToString();
+            var textObj = typeData["text"]?.ToString() ?? typeData["rich_text"]?.ToString();
+            
+            if(textObj is null)
+                continue;
+            
             var richText = JsonConvert.DeserializeObject<TitleModel[]>(textObj)!;
 
             foreach (var titleModel in richText)
@@ -68,7 +72,7 @@ public static class NotionHtmlParser
                     blockNode.SetAttributeValue("data-style", dataStyle);
                 }
 
-                blockNode.InnerHtml = titleModel.Text?.Content;
+                blockNode.InnerHtml = titleModel.Text?.Content ?? titleModel.PlainText;
                 bodyNode.AppendChild(blockNode);
             }
         }

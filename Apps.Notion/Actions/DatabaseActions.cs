@@ -22,22 +22,32 @@ public class DatabaseActions : NotionInvocable
     }
 
     [Action("List databases", Description = "List all databases")]
-    public async Task<ListDatabasesResponse> ListDatabases()
+    public async Task<ListDatabasesResponse> ListDatabases([ActionParameter] ListRequest input)
     {
         var items = await Client.SearchAll<DatabaseResponse>(Creds, "database");
-        var databases = items.Select(x => new DatabaseEntity(x)).ToArray();
+        var databases = items
+            .Select(x => new DatabaseEntity(x))
+            .Where(x => x.LastEditedTime > (input.EditedSince ?? default))
+            .Where(x => x.CreatedTime > (input.CreatedSince ?? default))
+            .ToArray();
 
         return new(databases);
     }
     
     [Action("List database records", Description = "List all database records")]
-    public async Task<ListPagesResponse> ListDatabaseRecords([ActionParameter] DatabaseRequest database)
+    public async Task<ListPagesResponse> ListDatabaseRecords(
+        [ActionParameter] DatabaseRequest database,
+        [ActionParameter] ListRequest input)
     {
         var endpoint = $"{ApiEndpoints.Databases}/{database.DatabaseId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds);
 
         var response = await Client.Paginate<PageResponse>(request);
-        var pages = response.Select(x => new PageEntity(x)).ToArray();
+        var pages = response
+            .Select(x => new PageEntity(x))
+            .Where(x => x.LastEditedTime > (input.EditedSince ?? default))
+            .Where(x => x.CreatedTime > (input.CreatedSince ?? default))
+            .ToArray();
 
         return new(pages);
     }
