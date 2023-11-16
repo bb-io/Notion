@@ -16,10 +16,12 @@ public static class NotionHtmlParser
     private const string ContentParamsAttr = "data-content-params";
     private const string UntranslatableContentAttr = "data-untranslatable";
     private const string UntranslatableType = "untranslatable";
-    
-    private static readonly string[] UnparsableTypes = { "child_page", "image" };
+
+    private static readonly string[] UnparsableTypes =
+        { "child_page", "child_database", "image", "unsupported", "file", "link_preview" };
+
     private static readonly string[] TextTypes = { "rich_text", "text" };
-    
+
     public static JObject[] ParseHtml(byte[] file)
     {
         var html = Encoding.UTF8.GetString(file).AsHtmlDocument();
@@ -44,16 +46,16 @@ public static class NotionHtmlParser
         foreach (var block in blocks)
         {
             var type = block["type"]!.ToString();
-            
-            if(UnparsableTypes.Contains(type))
+
+            if (UnparsableTypes.Contains(type))
                 continue;
-            
+
             var content = block[type]!;
 
             var contentProperties = content.Children();
             var textElements = contentProperties
                 .FirstOrDefault(x => TextTypes.Contains((x as JProperty)!.Name))?.Values();
-            
+
             var blockNode = htmlDoc.CreateElement("div");
 
             if (textElements is null)
@@ -61,7 +63,7 @@ public static class NotionHtmlParser
                 blockNode.SetAttributeValue(TypeAttr, UntranslatableType);
                 blockNode.SetAttributeValue(UntranslatableContentAttr, block.ToString());
                 bodyNode.AppendChild(blockNode);
-                
+
                 continue;
             }
 
@@ -138,7 +140,7 @@ public static class NotionHtmlParser
         {
             { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) }
         };
-        
+
         return new()
         {
             { "object", "block" },
