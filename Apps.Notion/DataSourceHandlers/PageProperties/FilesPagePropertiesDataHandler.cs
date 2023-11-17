@@ -9,9 +9,8 @@ public class FilesPagePropertiesDataHandler : PagePropertiesDataHandler
 {
     protected override string[] Types => new[] { "files" };
 
-    public FilesPagePropertiesDataHandler(InvocationContext invocationContext, [ActionParameter] PageFilesPropertyRequest input) : base(
-        invocationContext,
-        input.PageId)
+    public FilesPagePropertiesDataHandler(InvocationContext invocationContext,
+        [ActionParameter] PageFilesPropertyRequest input) : base(invocationContext, input.DatabaseId)
     {
     }
 }

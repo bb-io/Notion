@@ -10,7 +10,7 @@ public class NumberPagePropertiesDataHandler : PagePropertiesDataHandler
     protected override string[] Types => new[] { "number", "unique_id" };
 
     public NumberPagePropertiesDataHandler(InvocationContext invocationContext,
-        [ActionParameter] PageNumberPropertyRequest input) : base(invocationContext, input.PageId)
+        [ActionParameter] PageNumberPropertyRequest input) : base(invocationContext, input.DatabaseId)
     {
     }
 }
