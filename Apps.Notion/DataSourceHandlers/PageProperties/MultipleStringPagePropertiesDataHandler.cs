@@ -10,8 +10,7 @@ public class MultipleStringPagePropertiesDataHandler : PagePropertiesDataHandler
     protected override string[] Types => new[] { "multi_select", "relation", "people" };
 
     public MultipleStringPagePropertiesDataHandler(InvocationContext invocationContext,
-        [ActionParameter] PageMultipleStringPropertyRequest input) : base(
-        invocationContext, input.PageId)
+        [ActionParameter] PageMultipleStringPropertyRequest input) : base(invocationContext, input.DatabaseId)
     {
     }
 }

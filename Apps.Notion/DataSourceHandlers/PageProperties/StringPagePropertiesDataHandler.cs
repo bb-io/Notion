@@ -11,7 +11,7 @@ public class StringPagePropertiesDataHandler : PagePropertiesDataHandler
         { "title", "email", "phone_number", "status", "created_by", "last_edited_by", "select", "url", "rich_text" };
 
     public StringPagePropertiesDataHandler(InvocationContext invocationContext,
-        [ActionParameter] PageStringPropertyRequest input) : base(invocationContext, input.PageId)
+        [ActionParameter] PageStringPropertyRequest input) : base(invocationContext, input.DatabaseId)
     {
     }
 }

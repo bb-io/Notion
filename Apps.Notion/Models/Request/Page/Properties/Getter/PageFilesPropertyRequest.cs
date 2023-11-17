@@ -7,6 +7,10 @@ namespace Apps.Notion.Models.Request.Page.Properties.Getter;
 
 public class PageFilesPropertyRequest
 {
+    [Display("Database")]
+    [DataSource(typeof(DatabaseDataHandler))]
+    public string DatabaseId { get; set; }  
+    
     [Display("Page")]
     [DataSource(typeof(PageDataHandler))]
     public string PageId { get; set; }

@@ -9,8 +9,8 @@ public class BooleanPagePropertiesDataHandler : PagePropertiesDataHandler
 {
     protected override string[] Types => new[] { "checkbox" };
 
-    public BooleanPagePropertiesDataHandler(InvocationContext invocationContext, [ActionParameter] PageBooleanPropertyRequest input) : base(
-        invocationContext, input.PageId)
+    public BooleanPagePropertiesDataHandler(InvocationContext invocationContext,
+        [ActionParameter] PageBooleanPropertyRequest input) : base(invocationContext, input.DatabaseId)
     {
     }
 }

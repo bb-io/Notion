@@ -11,22 +11,23 @@ namespace Apps.Notion.Utils;
 
 public static class NotionHtmlParser
 {
-    private const string Signature = "bb990011";
+    private const string AnnotationsAttr = "data-style";
+    private const string TypeAttr = "data-type";
+    private const string ContentParamsAttr = "data-content-params";
+    private const string UntranslatableContentAttr = "data-untranslatable";
+    private const string UntranslatableType = "untranslatable";
 
-    private static Dictionary<string, string> Types => new()
-    {
-        { "h1", "heading_1" },
-        { "h2", "heading_2" },
-        { "h3", "heading_3" },
-        { "p", "paragraph" },
-    };
+    private static readonly string[] UnparsableTypes =
+        { "child_page", "child_database", "image", "unsupported", "file", "link_preview" };
+
+    private static readonly string[] TextTypes = { "rich_text", "text" };
 
     public static JObject[] ParseHtml(byte[] file)
     {
         var html = Encoding.UTF8.GetString(file).AsHtmlDocument();
         var translatableNodes = html.DocumentNode.SelectSingleNode("/html/body")
-            .Descendants()
-            .Where(x => x.Name != "#text" && !string.IsNullOrWhiteSpace(x.InnerText) && x.ChildNodes.Count == 1)
+            .ChildNodes
+            .Where(x => x.Name != "#text")
             .ToArray();
 
         return translatableNodes.Select(MapNodeToBlockChild).ToArray();
@@ -45,22 +46,45 @@ public static class NotionHtmlParser
         foreach (var block in blocks)
         {
             var type = block["type"]!.ToString();
-            var typeData = block[type]!;
-            
-            var textObj = typeData["text"]?.ToString() ?? typeData["rich_text"]?.ToString();
-            
-            if(textObj is null)
+
+            if (UnparsableTypes.Contains(type))
                 continue;
-            
-            var richText = JsonConvert.DeserializeObject<TitleModel[]>(textObj)!;
+
+            var content = block[type]!;
+
+            var contentProperties = content.Children();
+            var textElements = contentProperties
+                .FirstOrDefault(x => TextTypes.Contains((x as JProperty)!.Name))?.Values();
+
+            var blockNode = htmlDoc.CreateElement("div");
+
+            if (textElements is null)
+            {
+                blockNode.SetAttributeValue(TypeAttr, UntranslatableType);
+                blockNode.SetAttributeValue(UntranslatableContentAttr, block.ToString());
+                bodyNode.AppendChild(blockNode);
+
+                continue;
+            }
+
+            var richText = textElements
+                .Select(x => JsonConvert.DeserializeObject<TitleModel>(x.ToString())!)
+                .ToArray();
+
+            var contentParams = contentProperties
+                .Where(x => !TextTypes.Contains((x as JProperty)!.Name));
+
+            blockNode.SetAttributeValue(TypeAttr, type);
+            blockNode.SetAttributeValue(ContentParamsAttr, new JObject(contentParams).ToString());
 
             foreach (var titleModel in richText)
             {
                 var linkUrl = titleModel.Text?.Link?.Url;
 
-                var blockNode = htmlDoc.CreateElement(GetBlockTagName(type));
+                var blockChildNode = htmlDoc.CreateElement("p");
+
                 if (!string.IsNullOrEmpty(linkUrl))
-                    blockNode.SetAttributeValue("href", linkUrl);
+                    blockChildNode.SetAttributeValue("href", linkUrl);
 
                 if (titleModel.Annotations is not null)
                 {
@@ -68,13 +92,15 @@ public static class NotionHtmlParser
                         .Select(x => $"{x.Key.ToLower()}={x.Value}")
                         .ToArray();
 
-                    var dataStyle = $"{Signature}{string.Join(';', annotations)}";
-                    blockNode.SetAttributeValue("data-style", dataStyle);
+                    var dataStyle = string.Join(';', annotations);
+                    blockChildNode.SetAttributeValue(AnnotationsAttr, dataStyle);
                 }
 
-                blockNode.InnerHtml = titleModel.Text?.Content ?? titleModel.PlainText;
-                bodyNode.AppendChild(blockNode);
+                blockChildNode.InnerHtml = titleModel.Text?.Content ?? titleModel.PlainText;
+                blockNode.AppendChild(blockChildNode);
             }
+
+            bodyNode.AppendChild(blockNode);
         }
 
         return htmlDoc.DocumentNode.OuterHtml;
@@ -82,57 +108,58 @@ public static class NotionHtmlParser
 
     private static JObject MapNodeToBlockChild(HtmlNode node)
     {
-        var richText = new TitleModel[]
+        var type = node.Attributes[TypeAttr]!.Value;
+
+        return type switch
         {
-            new()
+            UntranslatableType => JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue),
+            _ => ParseText(node, type)
+        };
+    }
+
+    private static JObject ParseText(HtmlNode node, string type)
+    {
+        var richText = node.ChildNodes.Select(x => new TitleModel()
+        {
+            Type = "text",
+            Annotations = ParseAnnotations(x.Attributes),
+            Text = new()
             {
-                Type = "text",
-                Annotations = ParseAnnotations(node.Attributes),
-                Text = new()
-                {
-                    Content = node.InnerText,
-                    Link = node.Attributes["href"]?.Value is null
-                        ? null
-                        : new()
-                        {
-                            Url = node.Attributes["href"].Value
-                        }
-                }
+                Content = x.InnerText,
+                Link = x.Attributes["href"]?.Value is null
+                    ? null
+                    : new()
+                    {
+                        Url = x.Attributes["href"].Value
+                    }
             }
+        }).ToArray();
+
+        var contextParams = JObject.Parse(node.Attributes[ContentParamsAttr]!.DeEntitizeValue);
+        var content = new JObject(contextParams)
+        {
+            { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) }
         };
 
-        var type = GetBlockType(node.Name);
         return new()
         {
             { "object", "block" },
             { "type", type },
-            {
-                type, new JObject()
-                {
-                    { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) }
-                }
-            },
+            { type, content },
         };
     }
 
     private static AnnotationsModel? ParseAnnotations(HtmlAttributeCollection attr)
     {
-        var data = attr["data-style"]?.Value;
+        var data = attr[AnnotationsAttr]?.Value;
 
-        if (data is null || !data.StartsWith(Signature))
+        if (data is null)
             return null;
 
         var annotations = data
-            .Replace(Signature, string.Empty)
             .Split(';')
             .ToDictionary(x => x.Split('=')[0], x => x.Split('=')[1]);
 
         return JObject.FromObject(annotations).ToObject<AnnotationsModel>();
     }
-
-    private static string GetBlockType(string tagName)
-        => Types.TryGetValue(tagName, out var type) ? type : "paragraph";
-
-    private static string GetBlockTagName(string blockType)
-        => Types.ContainsValue(blockType) ? Types.First(x => x.Value == blockType).Key : "div";
 }

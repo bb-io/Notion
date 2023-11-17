@@ -33,20 +33,21 @@ public class DatabaseActions : NotionInvocable
 
         return new(databases);
     }
-    
-    [Action("List database records", Description = "List all database records")]
-    public async Task<ListPagesResponse> ListDatabaseRecords(
-        [ActionParameter] DatabaseRequest database,
-        [ActionParameter] ListRequest input)
+
+    [Action("Search pages in database", Description = "Search pages in database that match specific condition")]
+    public async Task<ListPagesResponse> SearchPagesInDatabase(
+        [ActionParameter] SearchPagesInDatabaseRequest input)
     {
-        var endpoint = $"{ApiEndpoints.Databases}/{database.DatabaseId}/query";
+        var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds);
 
         var response = await Client.Paginate<PageResponse>(request);
         var pages = response
-            .Select(x => new PageEntity(x))
             .Where(x => x.LastEditedTime > (input.EditedSince ?? default))
             .Where(x => x.CreatedTime > (input.CreatedSince ?? default))
+            .Where(x => input.CheckboxProperty is null || FilterCheckboxProperty(x, input.CheckboxProperty))
+            .Where(x => input.SelectProperty is null || FilterSelectProperty(x, input.SelectProperty))
+            .Select(x => new PageEntity(x))
             .ToArray();
 
         return new(pages);
@@ -85,4 +86,30 @@ public class DatabaseActions : NotionInvocable
         var response = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
         return new(response);
     }
+
+    #region Utils
+
+    private bool FilterSelectProperty(PageResponse pageResponse, string inputSelectProperty)
+    {
+        var propertyData = inputSelectProperty.Split(';');
+
+        var propertyId = propertyData[0];
+        var propertyValue = propertyData[1];
+
+        return pageResponse.Properties.Any(x =>
+            x.Value["id"]!.ToString() == propertyId && x.Value.SelectToken("select.name")?.ToString() == propertyValue);
+    }
+
+    private bool FilterCheckboxProperty(PageResponse pageResponse, string inputCheckboxProperty)
+    {
+        var propertyData = inputCheckboxProperty.Split(';');
+
+        var propertyId = propertyData[0];
+        var propertyValue = propertyData[1];
+
+        return pageResponse.Properties.Any(x =>
+            x.Value["id"]!.ToString() == propertyId && x.Value["checkbox"]?.ToString() == propertyValue);
+    }
+
+    #endregion
 }
