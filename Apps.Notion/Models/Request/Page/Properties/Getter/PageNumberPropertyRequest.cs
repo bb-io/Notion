@@ -1,5 +1,5 @@
 using Apps.Notion.DataSourceHandlers;
-using Apps.Notion.DataSourceHandlers.PageProperties;
+using Apps.Notion.DataSourceHandlers.PageProperties.Getters;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Dynamic;
 

@@ -352,6 +352,20 @@ public class PageActions : NotionInvocable
         };
 
         await UpdatePageProperty(input.PageId, name, payload);
+    }    
+    
+    [Action("Set page date property", Description = "Set new value of a date page property")]
+    public async Task SetDateProperty([ActionParameter] SetPageDatePropertyRequest input)
+    {
+        var (name, property) = await GetPagePropertyWithName(input.PageId, input.PropertyId);
+
+        var payload = property["type"]!.ToString() switch
+        {
+            "date" => PagePropertyPayloadFactory.GetDate(input.Date, input.EndDate),
+            _ => throw new ArgumentException("Given ID does not stand for a date value property")
+        };
+
+        await UpdatePageProperty(input.PageId, name, payload);
     }
 
     #endregion

@@ -3,7 +3,7 @@ using Apps.Notion.Models.Request.Page.Properties.Getter;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Invocation;
 
-namespace Apps.Notion.DataSourceHandlers.PageProperties;
+namespace Apps.Notion.DataSourceHandlers.PageProperties.Getters;
 
 public class NumberPagePropertiesDataHandler : PagePropertiesDataHandler
 {

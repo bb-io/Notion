@@ -133,4 +133,18 @@ public static class PagePropertyPayloadFactory
                     }
                 })
         }.ToJObject();
+
+    public static JObject GetDate(DateTime startDate, DateTime? endDate)
+        => new
+        {
+            date = new
+            {
+                start = startDate.TimeOfDay == TimeSpan.Zero
+                    ? startDate.ToString("yyyy-MM-dd")
+                    : startDate.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz"),
+                end = endDate is not null && endDate.Value.TimeOfDay == TimeSpan.Zero
+                    ? endDate.Value.ToString("yyyy-MM-dd")
+                    : endDate?.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz"),
+            }
+        }.ToJObject();
 }
