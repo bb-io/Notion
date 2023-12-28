@@ -1,7 +1,7 @@
 using Apps.Notion.Extensions;
 using Apps.Notion.Models;
+using Blackbird.Applications.Sdk.Common.Files;
 using Newtonsoft.Json.Linq;
-using File = Blackbird.Applications.Sdk.Common.Files.File;
 
 namespace Apps.Notion.Utils;
 
@@ -112,16 +112,16 @@ public static class PagePropertyPayloadFactory
             })
         }.ToJObject();
 
-    public static JObject GetFiles(IEnumerable<File> values)
+    public static JObject GetFiles(IEnumerable<FileReference> values)
         => new
         {
-            files = values.Select(x => x.DownloadUrl.StartsWith("https://prod-files-secure.s3")
+            files = values.Select(x => x.Url.StartsWith("https://prod-files-secure.s3")
                 ? new
                 {
                     name = x.Name,
                     file = new
                     {
-                        url = x.DownloadUrl
+                        url = x.Url
                     }
                 }
                 : (object)new
@@ -129,7 +129,7 @@ public static class PagePropertyPayloadFactory
                     name = x.Name,
                     external = new
                     {
-                        url = x.DownloadUrl
+                        url = x.Url
                     }
                 })
         }.ToJObject();

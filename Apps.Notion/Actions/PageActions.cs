@@ -18,6 +18,8 @@ using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Files;
 using Blackbird.Applications.Sdk.Common.Invocation;
+using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
+using Blackbird.Applications.Sdk.Utils.Extensions.Files;
 using Blackbird.Applications.Sdk.Utils.Extensions.Http;
 using Newtonsoft.Json.Linq;
 using RestSharp;
@@ -27,8 +29,12 @@ namespace Apps.Notion.Actions;
 [ActionList]
 public class PageActions : NotionInvocable
 {
-    public PageActions(InvocationContext invocationContext) : base(invocationContext)
+    private readonly IFileManagementClient _fileManagementClient;
+    
+    public PageActions(InvocationContext invocationContext, IFileManagementClient fileManagementClient) 
+        : base(invocationContext)
     {
+        _fileManagementClient = fileManagementClient;
     }
 
     [Action("List pages", Description = "List all pages")]
@@ -66,8 +72,10 @@ public class PageActions : NotionInvocable
         [ActionParameter] FileRequest file)
     {
         var page = await CreatePage(input);
+        var fileStream = await _fileManagementClient.DownloadAsync(file.File);
+        var fileBytes = await fileStream.GetByteData();
 
-        var blocks = NotionHtmlParser.ParseHtml(file.File.Bytes);
+        var blocks = NotionHtmlParser.ParseHtml(fileBytes);
         await new BlockActions(InvocationContext).AppendBlockChildren(page.Id, blocks);
 
         return page;
@@ -83,14 +91,9 @@ public class PageActions : NotionInvocable
         var response = await Client.Paginate<JObject>(request);
         var html = NotionHtmlParser.ParseBlocks(response.ToArray());
 
-        return new()
-        {
-            File = new(Encoding.UTF8.GetBytes(html))
-            {
-                Name = $"{page.PageId}.html",
-                ContentType = MediaTypeNames.Text.Html
-            }
-        };
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(html));
+        var file = await _fileManagementClient.UploadAsync(stream, MediaTypeNames.Text.Html, $"{page.PageId}.html");
+        return new() { File = file };
     }
 
     [Action("Update page from HTML", Description = "Update specific page from an HTML file")]
@@ -120,7 +123,10 @@ public class PageActions : NotionInvocable
             }
         }
 
-        var blocks = NotionHtmlParser.ParseHtml(file.File.Bytes);
+        var fileStream = await _fileManagementClient.DownloadAsync(file.File);
+        var fileBytes = await fileStream.GetByteData();
+        
+        var blocks = NotionHtmlParser.ParseHtml(fileBytes);
         await actions.AppendBlockChildren(page.PageId, blocks);
     }
 
