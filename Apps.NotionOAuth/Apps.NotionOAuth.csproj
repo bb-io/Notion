@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-	 <Product>Notion</Product>
+	 <Product>Notion (OAuth)</Product>
 	 <Description>Productivity and note-taking web application</Description>
 	 <Version>1.0.0</Version>
 	 <AssemblyName>Apps.NotionOAuth</AssemblyName>
