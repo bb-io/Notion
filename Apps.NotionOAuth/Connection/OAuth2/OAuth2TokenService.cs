@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using System.Text;
+using System.Net;
 
 namespace Apps.NotionOAuth.Connections.OAuth2;
 
@@ -56,11 +57,13 @@ public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService
         CancellationToken cancellationToken)
     {
         using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+        httpClient.DefaultRequestHeaders.Add("Notion-Version", ApiConstants.ApiVersion);
+
+        var baseAuth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{ApplicationConstants.ClientId}:{ApplicationConstants.ClientSecret}"));
+        httpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {baseAuth}");
 
         using var httpContent = new FormUrlEncodedContent(bodyParameters);
-        var baseAuth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{ApplicationConstants.ClientId}:{ ApplicationConstants.ClientSecret}"));
-        httpContent.Headers.Add("Authorization", 
-            $"Basic {baseAuth}");
         using var response = await httpClient.PostAsync(Urls.Token, httpContent, cancellationToken);
 
         var responseContent = await response.Content.ReadAsStringAsync();
