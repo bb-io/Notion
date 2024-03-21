@@ -256,12 +256,12 @@ public class PageActions : NotionInvocable
             "multi_select" => response["multi_select"]!.Select(x => x["name"]!.ToString()),
             "relation" => response["results"]!.Select(x => x["relation"]!["id"]!.ToString()),
             "people" => response["results"]!.Select(x => x["people"]!["id"]!.ToString()),
-            _ => throw new ArgumentException("Given ID does not stand for a date value property")
+            _ => throw new ArgumentException("Given ID does not stand for a multi select")
         };
 
         return new()
         {
-            PropertyValue = value
+            PropertyValue = value ?? Enumerable.Empty<string>()
         };
     }
 
@@ -322,11 +322,19 @@ public class PageActions : NotionInvocable
     {
         var (name, property) = await GetPagePropertyWithName(input.PageId, input.PropertyId);
 
+        var newValues = input.Values;
+
+        if (input.AddOnUpdate.HasValue && input.AddOnUpdate.Value)
+        {
+            var currentValues = await GetMultipleStringProperty(input);
+            newValues = newValues.Concat(currentValues.PropertyValue);
+        }
+
         var payload = property["type"]!.ToString() switch
         {
-            "multi_select" => PagePropertyPayloadFactory.GetMultiSelect(input.Values),
-            "relation" => PagePropertyPayloadFactory.GetRelation(input.Values),
-            "people" => PagePropertyPayloadFactory.GetPeople(input.Values),
+            "multi_select" => PagePropertyPayloadFactory.GetMultiSelect(newValues),
+            "relation" => PagePropertyPayloadFactory.GetRelation(newValues),
+            "people" => PagePropertyPayloadFactory.GetPeople(newValues),
             _ => throw new ArgumentException("Given ID does not stand for a string value property")
         };
 
