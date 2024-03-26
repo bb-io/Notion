@@ -250,19 +250,26 @@ public class PageActions : NotionInvocable
     {
         var response = await GetPageProperty(input.PageId, input.PropertyId);
 
-        var propertyType = response["results"]?.First()["type"]!.ToString() ?? response["type"]!.ToString();
-        var value = propertyType switch
+        try
         {
-            "multi_select" => response["multi_select"]!.Select(x => x["name"]!.ToString()),
-            "relation" => response["results"]!.Select(x => x["relation"]!["id"]!.ToString()),
-            "people" => response["results"]!.Select(x => x["people"]!["id"]!.ToString()),
-            _ => throw new ArgumentException("Given ID does not stand for a multi select")
-        };
+            var propertyType = response["results"]?.First()["type"]!.ToString() ?? response["type"]!.ToString();
+            var value = propertyType switch
+            {
+                "multi_select" => response["multi_select"]!.Select(x => x["name"]!.ToString()),
+                "relation" => response["results"]!.Select(x => x["relation"]!["id"]!.ToString()),
+                "people" => response["results"]!.Select(x => x["people"]!["id"]!.ToString()),
+                _ => throw new ArgumentException("Given ID does not stand for a multi select")
+            };
 
-        return new()
+            return new()
+            {
+                PropertyValue = value ?? Enumerable.Empty<string>()
+            };
+        }
+        catch (Exception ex)
         {
-            PropertyValue = value ?? Enumerable.Empty<string>()
-        };
+            throw new($"{ex.Message}. Property: {response}");
+        }
     }
 
     #endregion
