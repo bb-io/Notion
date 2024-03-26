@@ -252,7 +252,11 @@ public class PageActions : NotionInvocable
 
         try
         {
-            var propertyType = response["results"]?.First()["type"]!.ToString() ?? response["type"]!.ToString();
+            var propertyType = response["results"]?.FirstOrDefault()?["type"]!.ToString() ?? response["type"]!.ToString();
+
+            if (propertyType is "property_item")
+                propertyType = response["property_item"]!["type"].ToString();
+            
             var value = propertyType switch
             {
                 "multi_select" => response["multi_select"]!.Select(x => x["name"]!.ToString()),
