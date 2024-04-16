@@ -1,10 +1,10 @@
-using Blackbird.Applications.Sdk.Utils.Sdk.DataSourceHandlers;
+using Blackbird.Applications.Sdk.Common.Dictionaries;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.EnumHandlers;
 
-public class PropertyTypeDataHandler : EnumDataHandler
+public class PropertyTypeDataHandler : IStaticDataSourceHandler
 {
-    protected override Dictionary<string, string> EnumValues => new()
+    public Dictionary<string, string> GetData() => new()
     {
         { "title", "Title" },
         { "rich_text", "Rich text" },

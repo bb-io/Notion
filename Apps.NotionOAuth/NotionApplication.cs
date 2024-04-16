@@ -2,12 +2,24 @@
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication.OAuth2;
 using Blackbird.Applications.Sdk.Common.Invocation;
+using Blackbird.Applications.Sdk.Common.Metadata;
 
 namespace Apps.NotionOAuth;
 
-public class NotionApplication : BaseInvocable, IApplication
+public class NotionApplication : BaseInvocable, IApplication, ICategoryProvider
 {
     private readonly Dictionary<Type, object> _typesInstances;
+
+    public IEnumerable<ApplicationCategory> Categories
+    {
+        get =>
+        [
+            ApplicationCategory.CustomerSupport, ApplicationCategory.Marketing,
+            ApplicationCategory.ProjectManagementAndProductivity, ApplicationCategory.TaskManagement
+        ];
+        set { }
+    }
+
     public NotionApplication(InvocationContext invocationContext) : base(invocationContext)
     {
         _typesInstances = CreateTypesInstances();
@@ -19,14 +31,13 @@ public class NotionApplication : BaseInvocable, IApplication
         set { }
     }
 
-    public IPublicApplicationMetadata? PublicApplicationMetadata => throw new NotImplementedException();
-
     public T GetInstance<T>()
     {
         if (!_typesInstances.TryGetValue(typeof(T), out var value))
         {
             throw new InvalidOperationException($"Instance of type '{typeof(T)}' not found");
         }
+
         return (T)value;
     }
 
