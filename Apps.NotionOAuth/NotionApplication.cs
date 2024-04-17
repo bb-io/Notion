@@ -14,8 +14,11 @@ public class NotionApplication : BaseInvocable, IApplication, ICategoryProvider
     {
         get =>
         [
-            ApplicationCategory.CustomerSupport, ApplicationCategory.Marketing,
-            ApplicationCategory.ProjectManagementAndProductivity, ApplicationCategory.TaskManagement
+            ApplicationCategory.CustomerSupport, 
+            ApplicationCategory.Marketing,
+            ApplicationCategory.ProjectManagementAndProductivity, 
+            ApplicationCategory.TaskManagement,
+            ApplicationCategory.Cms
         ];
         set { }
     }
