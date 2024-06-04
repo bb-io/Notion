@@ -54,9 +54,12 @@ public class NotionClient : BlackBirdRestClient
         do
         {
             if (cursor is not null)
+            {
                 request.Resource = baseUrl.SetQueryParameter("start_cursor", cursor);
+            }
             
             var response = await ExecuteWithErrorHandling<PaginationResponse<T>>(request);
+            await Logger.LogAsync(new { Response = response });
 
             results.AddRange(response.Results);
             cursor = response.NextCursor;
