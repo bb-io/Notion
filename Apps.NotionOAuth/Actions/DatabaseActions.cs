@@ -62,8 +62,7 @@ public class DatabaseActions : NotionInvocable
         var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds);
 
-        var response = await Client.Paginate<PageResponse>(request);
-
+        var response = await Client.PaginateWithBody<PageResponse>(request);
         foreach (var page in response)
         {
             var property = page.FindPropertyById(input.PropertyId);
