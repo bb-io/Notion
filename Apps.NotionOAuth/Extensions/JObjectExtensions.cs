@@ -15,7 +15,7 @@ public static class JObjectExtensions
         return obj["type"]!.ToString() switch
         {
             "url" => obj["url"]!.ToString(),
-            "title" => obj["title"]!.ToObject<TitleModel>()!.PlainText,
+            "title" => HandleTitleObject(obj["title"]!),
             "email" => obj["email"]!.ToString(),
             "phone_number" => obj["phone_number"]!.ToString(),
             "status" => obj["status"]!["name"]!.ToString(),
@@ -25,5 +25,17 @@ public static class JObjectExtensions
             "rich_text" => obj["rich_text"]!.ToObject<TitleModel>()!.PlainText,
             _ => throw new ArgumentException("Given property is not of type string")
         };
+    }
+
+    private static string? HandleTitleObject(JToken title)
+    {
+        var titleString = title.ToString();
+
+        if(titleString.StartsWith("["))
+        {
+            return title.ToObject<TitleModel[]>()!.FirstOrDefault()?.PlainText;
+        }
+
+        return title.ToObject<TitleModel>()!.PlainText;
     }
 }
