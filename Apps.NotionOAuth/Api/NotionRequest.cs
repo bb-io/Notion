@@ -16,7 +16,6 @@ public class NotionRequest : BlackBirdRestRequest
     protected override void AddAuth(IEnumerable<AuthenticationCredentialsProvider> creds)
     {
         var token = creds.Get(CredsNames.AccessToken).Value;
-        Logger.Log(new { access_token = token});
 
         this.AddHeader("Authorization", $"Bearer {token}")
             .AddHeader("Notion-Version", ApiConstants.ApiVersion);
