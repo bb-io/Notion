@@ -9,31 +9,24 @@ Blackbird is the new automation backbone for the language technology industry. B
 Notion is a note-taking and idea-organizing platform. This Notion application primarily centers around page and database management.  
   
  ## Before setting up
- - Go to `https://www.notion.so/my-integrations` and click _New integration_
- - Fill in all the required fields
- - Open _Secrets_ tab and save  _Internal Integration Secret_ value to be able to connect to Notion via Blackbird.
-
-## Add connection to pages and databases
-
-To make your content interactive with Blackbird, you should add your newly created connection to each page or database you want to work with. Connection will be automatically added to their children, If there are any.
-
-#### To add your connection to the page or database:
-
-- Open your page or database
-- Click on the three dots in the top right corner
-- Go to the _Connections_ section and hover on _Add connections_
-- Select your newly created connection
-- Click _Confirm_
+ Before you can connect you need to make sure that:
+ - You have a Notion account
+ - You have sufficient permissions in the workspace you want to connect Blackbird with.
  
 ## Connecting  
   
-1. Navigate to apps and search for Notion. If you cannot find Notion then click _Add App_ in the top right corner, select Notion and add the app to your Blackbird environment.  
+1. Navigate to apps and search for Notion. 
 2. Click _Add Connection_.  
-3. Name your connection for future reference e.g. 'My client'.  
-6. Paste your _Internal Integration Secret_ it to the appropriate field in the Blackbird  
-7. Click _Connect_.  
-8. Confirm that the connection has appeared and the status is _Connected_.  
+3. Name your connection for future reference e.g. 'My Notion connection'.  
+4. Click _Authorize connection_.
+5. In the popup, select the workspace you want to connect to in the top right corner.
+6. Click _Select pages_
+7. Manually select all the pages you want Blackbird to access.
+8. Click _Allow access_
+9. Confirm that the connection has appeared and the status is _Connected_.  
   
+> If you later want to give Blackbird the ability to access other pages, you can do so manually through the page options in Notion.
+
 ## Actions  
   
 ### Blocks  
