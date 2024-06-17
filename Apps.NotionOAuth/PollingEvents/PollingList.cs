@@ -26,12 +26,6 @@ public class PollingList : NotionInvocable
         => HandlePagesPolling(request,
             x => x.LastEditedTime > request.Memory?.LastInteractionDate);
 
-    [PollingEvent("On pages archived", "On any pages archived")]
-    public Task<PollingEventResponse<DateMemory, ListPagesResponse>> OnPagesArchived(
-        PollingEventRequest<DateMemory> request)
-        => HandlePagesPolling(request,
-            x => x.Archived is true && x.LastEditedTime > request.Memory?.LastInteractionDate);
-
     private async Task<PollingEventResponse<DateMemory, ListPagesResponse>> HandlePagesPolling(
         PollingEventRequest<DateMemory> request, Func<PageResponse, bool> filter)
     {

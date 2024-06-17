@@ -63,9 +63,8 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 
 ### Pages
 
-- **On pages created** triggers when new pages are created.
+- **On pages created** triggers when new pages are created. To allow Blackbird access to the newly created pages you should do so manually through the page options in Notion
 - **On pages updated** triggers when any pages are updated.
-- **On pages archived** triggers when any pages are archived.
 
 ## HTML Conversion
 
