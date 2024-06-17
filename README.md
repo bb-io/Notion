@@ -59,6 +59,13 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 - **List users** returns a list of users belonging to the workspace.
 - **Get users** returns details about specified user.
 
+## Events
+
+### Pages
+
+- **On pages created** triggers when new pages are created. To allow Blackbird access to the newly created pages you should do so manually through the page options in Notion
+- **On pages updated** triggers when any pages are updated.
+
 ## HTML Conversion
 
 Blackbird is able to convert `Page` content to an HTML file and back, so that it is possible to translate Notion content automatically via Blackbird.  For example, you can do a combination like "Notion: Get page as HTML" -> "DeepL: Translate" -> "Notion: Update page from HTML". Untranslatable content will be transferred back as well, except of several types like: Reference, Image, File, Link. These types won't be transferred for now, but we are constantly working to make it better.
