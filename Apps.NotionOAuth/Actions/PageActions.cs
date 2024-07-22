@@ -24,6 +24,7 @@ using Blackbird.Applications.Sdk.Utils.Extensions.Http;
 using Newtonsoft.Json.Linq;
 using RestSharp;
 using Apps.NotionOAuth.Extensions;
+using Newtonsoft.Json;
 
 namespace Apps.NotionOAuth.Actions;
 
@@ -95,6 +96,17 @@ public class PageActions : NotionInvocable
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(html));
         var file = await _fileManagementClient.UploadAsync(stream, MediaTypeNames.Text.Html, $"{page.PageId}.html");
         return new() { File = file };
+    }   
+    
+    [Action("Get page as HTML (Debug)", Description = "Get content of a specific page as HTML (Debug)")]
+    public async Task<PageContentResponse> GetPageAsHtmlDebug(
+        [ActionParameter] PageRequest page)
+    {
+        var endpoint = $"{ApiEndpoints.Blocks}/{page.PageId}/children";
+        var request = new NotionRequest(endpoint, Method.Get, Creds);
+
+        var response = await Client.Paginate<JObject>(request);
+        return new() { Json = JsonConvert.SerializeObject(response) };
     }
 
     [Action("Update page from HTML", Description = "Update specific page from an HTML file")]
