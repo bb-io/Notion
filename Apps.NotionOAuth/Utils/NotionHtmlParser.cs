@@ -18,7 +18,7 @@ public static class NotionHtmlParser
     private const string UntranslatableType = "untranslatable";
 
     private static readonly string[] UnparsableTypes =
-        { "child_page", "child_database", "image", "unsupported", "file", "link_preview" };
+        { "child_page", "child_database", "unsupported", "file", "link_preview" };
 
     private static readonly string[] TextTypes = { "rich_text", "text" };
 
@@ -51,6 +51,11 @@ public static class NotionHtmlParser
                 continue;
 
             var content = block[type]!;
+
+            if (BlockIsUntranslatable(type, content))
+                continue;
+
+            RemoveEmptyUrls(block);
 
             var contentProperties = content.Children();
             var textElements = contentProperties
@@ -104,6 +109,28 @@ public static class NotionHtmlParser
         }
 
         return htmlDoc.DocumentNode.OuterHtml;
+    }
+
+    private static void RemoveEmptyUrls(JObject block)
+    {
+        block.Descendants().OfType<JProperty>()
+            .Where(x => x is { Name: "url" } && x.Value.ToString() == "#")
+            .ToList()
+            .ForEach(x => x.Value = null);
+    }
+
+    private static bool BlockIsUntranslatable(string type, JToken content)
+    {
+        if (type == "column_list" && !content.Children().Any())
+            return true;
+
+        if (type == "image" && content["type"].ToString() != "external")
+            return true;
+
+        if (type == "callout" && content["icon"]["type"].ToString() == "file")
+            (content as JObject).Remove("icon");
+
+        return false;
     }
 
     private static JObject MapNodeToBlockChild(HtmlNode node)
