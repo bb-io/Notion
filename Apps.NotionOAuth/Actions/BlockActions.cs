@@ -16,6 +16,8 @@ namespace Apps.NotionOAuth.Actions;
 [ActionList]
 public class BlockActions : NotionInvocable
 {
+    private const int MaxBlocksUploadSize = 100;
+    
     public BlockActions(InvocationContext invocationContext) : base(invocationContext)
     {
     }
@@ -52,15 +54,20 @@ public class BlockActions : NotionInvocable
         return Client.ExecuteWithErrorHandling(request);
     }
 
-    internal Task AppendBlockChildren(string blockId, JObject[] blocks)
+    internal async Task AppendBlockChildren(string blockId, JObject[] blocks)
     {
-        var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
-        var request = new NotionRequest(endpoint, Method.Patch, Creds)
-            .WithJsonBody(new ChildrenRequest()
-            {
-                Children = blocks
-            }, JsonConfig.Settings);
+        var blockChunks = blocks.Chunk(MaxBlocksUploadSize).ToArray();
+        
+        foreach (var blockChunk in blockChunks)
+        {
+            var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
+            var request = new NotionRequest(endpoint, Method.Patch, Creds)
+                .WithJsonBody(new ChildrenRequest()
+                {
+                    Children = blockChunk
+                }, JsonConfig.Settings);
 
-        return Client.ExecuteWithErrorHandling(request);
+            await Client.ExecuteWithErrorHandling(request);
+        }
     }
 }
