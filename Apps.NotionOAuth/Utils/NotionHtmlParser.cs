@@ -136,7 +136,7 @@ public static class NotionHtmlParser
 
     private static JObject MapNodeToBlockChild(HtmlNode node)
     {
-        var type = node.Attributes[TypeAttr]!.Value;
+        var type = node.Attributes[TypeAttr] != null ? node.Attributes[TypeAttr]!.Value : "paragraph";
 
         return type switch
         {
