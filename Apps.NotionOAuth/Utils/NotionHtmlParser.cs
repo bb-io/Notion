@@ -189,7 +189,10 @@ public static class NotionHtmlParser
             }
         }).ToArray();
 
-        var contextParams = JObject.Parse(node.Attributes[ContentParamsAttr]!.DeEntitizeValue);
+        var contextParams = new JObject();
+        if (node.Attributes[ContentParamsAttr] != null)
+            contextParams = JObject.Parse(node.Attributes[ContentParamsAttr]!.DeEntitizeValue);
+
         var content = new JObject(contextParams)
         {
             { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) }
