@@ -1,4 +1,5 @@
 using System.Text;
+using System.Xml.Linq;
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models;
 using Blackbird.Applications.Sdk.Utils.Extensions.System;
@@ -140,11 +141,37 @@ public static class NotionHtmlParser
         return type switch
         {
             UntranslatableType => JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue),
-            _ => ParseText(node, type)
+            _ => ParseNode(node, type)
         };
     }
 
-    private static JObject ParseText(HtmlNode node, string type)
+    public static JObject ParseText(string text)
+    {
+        var richText = new[] { new TitleModel()
+        {
+            Type = "text",
+            Text = new()
+            {
+                Content = text,
+                Link = null
+            }
+        } };
+
+        var content = new JObject()
+        {
+            { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) },
+            { "color", "default" }
+        };
+
+        return new()
+        {
+            { "object", "block" },
+            { "type", "paragraph" },
+            { "paragraph", content},
+        };
+    }
+
+    private static JObject ParseNode(HtmlNode node, string type)
     {
         var richText = node.ChildNodes.Select(x => new TitleModel()
         {
