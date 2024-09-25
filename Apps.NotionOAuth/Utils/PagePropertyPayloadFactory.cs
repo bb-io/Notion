@@ -73,6 +73,18 @@ public static class PagePropertyPayloadFactory
             }
         }.ToJObject();
 
+    public static JObject GetRelation(string value)
+    => new
+    {
+        relation = new []
+        {
+            new
+            {
+                id = value
+            }
+        }
+    }.ToJObject();
+
     public static JObject GetNumber(decimal value)
         => new
         {

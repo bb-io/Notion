@@ -166,6 +166,15 @@ public class PageActions : NotionInvocable
         return Client.ExecuteWithErrorHandling(request);
     }
 
+    [Action("Add content to page", Description = "Add text content to the bottom of a page")]
+    public async Task AppendPageContent(
+    [ActionParameter] PageRequest page, [ActionParameter][Display("Text content")] string text)
+    {
+        var actions = new BlockActions(InvocationContext);
+        var blocks = NotionHtmlParser.ParseText(text);
+        await actions.AppendBlockChildren(page.PageId, [blocks]);
+    }
+
     #region Properties
 
     #region Getters
@@ -306,6 +315,7 @@ public class PageActions : NotionInvocable
             "status" => PagePropertyPayloadFactory.GetStatus(input.Value),
             "select" => PagePropertyPayloadFactory.GetSelect(input.Value),
             "rich_text" => PagePropertyPayloadFactory.GetRichText(input.Value),
+            "relation" => PagePropertyPayloadFactory.GetRelation(input.Value),
             _ => throw new ArgumentException("Given ID does not stand for a string value property")
         };
 
