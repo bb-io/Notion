@@ -1,5 +1,4 @@
 ﻿using Apps.NotionOAuth.Constants;
-using Apps.NotionOAuth.Extensions;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication.OAuth2;
 using Blackbird.Applications.Sdk.Common.Invocation;

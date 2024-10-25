@@ -1,5 +1,4 @@
 using System.Text;
-using System.Xml.Linq;
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models;
 using Blackbird.Applications.Sdk.Utils.Extensions.System;
