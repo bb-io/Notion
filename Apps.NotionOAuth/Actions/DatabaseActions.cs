@@ -12,6 +12,7 @@ using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Utils.Extensions.Http;
+using Newtonsoft.Json.Linq;
 using RestSharp;
 
 namespace Apps.NotionOAuth.Actions;
@@ -49,6 +50,8 @@ public class DatabaseActions : NotionInvocable
             .Where(x => x.CreatedTime > (input.CreatedSince ?? default))
             .Where(x => input.CheckboxProperty is null || FilterCheckboxProperty(x, input.CheckboxProperty))
             .Where(x => input.SelectProperty is null || FilterSelectProperty(x, input.SelectProperty))
+            .Where(x => input.PropertiesShouldHaveValue is null || input.PropertiesShouldHaveValue.All(y => PagePropertyHasValue(x, y)))
+            .Where(x => input.PropertiesWithoutValues is null || input.PropertiesWithoutValues.All(y => !PagePropertyHasValue(x, y)))
             .Select(x => new PageEntity(x))
             .ToArray();
 
@@ -130,6 +133,24 @@ public class DatabaseActions : NotionInvocable
 
         return pageResponse.Properties.Any(x =>
             x.Value["id"]!.ToString() == propertyId && x.Value["checkbox"]?.ToString() == propertyValue);
+    }
+
+    private bool PagePropertyHasValue(PageResponse page, string propertyId)
+    {
+        KeyValuePair<string, JObject>? propertyPair =
+            page.Properties.FirstOrDefault(x => x.Value["id"].ToString() == propertyId);
+
+        var property = propertyPair?.Value ?? throw new("No property found with the provided ID");
+        var propertyType = property["type"].ToString();
+
+        return propertyType switch
+        {
+            "formula" => property[propertyType][property[propertyType]["type"].ToString()].HasValues ||
+                         (property[propertyType][property[propertyType]["type"].ToString()] as JValue)?.Value != null,
+            "rollup" => property[propertyType][property[propertyType]["type"].ToString()].HasValues ||
+                        (property[propertyType][property[propertyType]["type"].ToString()] as JValue)?.Value != null,
+            _ => property[propertyType].HasValues || (property[propertyType] as JValue)?.Value != null,
+        };
     }
 
     #endregion

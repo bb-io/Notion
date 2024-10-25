@@ -6,7 +6,6 @@ using Newtonsoft.Json;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using System.Text;
-using System.Net;
 
 namespace Apps.NotionOAuth.Connections.OAuth2;
 

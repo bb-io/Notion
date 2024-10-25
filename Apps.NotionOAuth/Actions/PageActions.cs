@@ -3,7 +3,6 @@ using System.Text;
 using Apps.NotionOAuth.Api;
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Invocables;
-using Apps.NotionOAuth.Models;
 using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.Models.Request;
 using Apps.NotionOAuth.Models.Request.Page;
