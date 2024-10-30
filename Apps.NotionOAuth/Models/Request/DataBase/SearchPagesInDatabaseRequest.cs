@@ -30,8 +30,8 @@ public class SearchPagesInDatabaseRequest : ListRequest
     [Display("Filter property"), DataSource(typeof(AllDatabasePropertyDataHandler))]
     public string? FilterProperty { get; set; }
     
-    [Display("Filter value is not empty")]
-    public bool? FilterValueIsNotEmpty { get; set; }
+    [Display("Filter value empty")]
+    public bool? FilterValueIsEmpty { get; set; }
     
     [Display("Filter property type"), StaticDataSource(typeof(FilterPropertyTypeDataHandler))]
     public string? FilterPropertyType { get; set; }

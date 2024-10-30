@@ -40,33 +40,33 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
         var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds);
         
-        if(input.FilterProperty != null && input.FilterValueIsNotEmpty != null && input.FilterPropertyType != null)
+        if(input.FilterProperty != null && input.FilterValueIsEmpty != null && input.FilterPropertyType != null)
         {
             switch (input.FilterPropertyType)
             {
                 case "date":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, date = new { equals = input.FilterValueIsNotEmpty } } });
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, date = new { is_not_empty = !input.FilterValueIsEmpty } } });
                     break;
                 case "files":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, files = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, files = new { is_not_empty = !input.FilterValueIsEmpty } } });
                     break;
                 case "multi_select":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, multi_select = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, multi_select = new { is_not_empty = !input.FilterValueIsEmpty } } });
                     break;
                 case "number":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, number = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, number = new { is_not_empty = !input.FilterValueIsEmpty } } });
                     break;
                 case "people":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, people = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, people = new { is_not_empty = !input.FilterValueIsEmpty } } });
                     break;
                 case "relation":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, relation = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, relation = new { is_not_empty = !input.FilterValueIsEmpty } } });
                     break;
                 case "select":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, select = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, select = new { is_not_empty = !input.FilterValueIsEmpty } } });
                     break;
                 case "status":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, status = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, status = new { is_not_empty = !input.FilterValueIsEmpty } } });
                     break;
             }
         }
