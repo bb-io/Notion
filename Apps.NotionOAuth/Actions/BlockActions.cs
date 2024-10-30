@@ -14,13 +14,9 @@ using RestSharp;
 namespace Apps.NotionOAuth.Actions;
 
 [ActionList]
-public class BlockActions : NotionInvocable
+public class BlockActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     private const int MaxBlocksUploadSize = 100;
-    
-    public BlockActions(InvocationContext invocationContext) : base(invocationContext)
-    {
-    }
 
     [Action("Get block", Description = "Get details of a specific block")]
     public async Task<BlockEntity> GetBlock([ActionParameter] BlockRequest input)

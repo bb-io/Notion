@@ -28,16 +28,9 @@ using Newtonsoft.Json;
 namespace Apps.NotionOAuth.Actions;
 
 [ActionList]
-public class PageActions : NotionInvocable
+public class PageActions(InvocationContext invocationContext, IFileManagementClient fileManagementClient)
+    : NotionInvocable(invocationContext)
 {
-    private readonly IFileManagementClient _fileManagementClient;
-    
-    public PageActions(InvocationContext invocationContext, IFileManagementClient fileManagementClient) 
-        : base(invocationContext)
-    {
-        _fileManagementClient = fileManagementClient;
-    }
-
     [Action("List pages", Description = "List all pages")]
     public async Task<ListPagesResponse> ListPages([ActionParameter] ListRequest input)
     {
@@ -73,7 +66,7 @@ public class PageActions : NotionInvocable
         [ActionParameter] FileRequest file)
     {
         var page = await CreatePage(input);
-        var fileStream = await _fileManagementClient.DownloadAsync(file.File);
+        var fileStream = await fileManagementClient.DownloadAsync(file.File);
         var fileBytes = await fileStream.GetByteData();
 
         var blocks = NotionHtmlParser.ParseHtml(fileBytes);
@@ -93,7 +86,7 @@ public class PageActions : NotionInvocable
         var html = NotionHtmlParser.ParseBlocks(response.ToArray());
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(html));
-        var file = await _fileManagementClient.UploadAsync(stream, MediaTypeNames.Text.Html, $"{page.PageId}.html");
+        var file = await fileManagementClient.UploadAsync(stream, MediaTypeNames.Text.Html, $"{page.PageId}.html");
         return new() { File = file };
     }   
     
@@ -135,7 +128,7 @@ public class PageActions : NotionInvocable
             }
         }
 
-        var fileStream = await _fileManagementClient.DownloadAsync(file.File);
+        var fileStream = await fileManagementClient.DownloadAsync(file.File);
         var fileBytes = await fileStream.GetByteData();
         
         var blocks = NotionHtmlParser.ParseHtml(fileBytes);
