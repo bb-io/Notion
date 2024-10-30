@@ -39,6 +39,37 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
     {
         var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds);
+        
+        if(input.FilterProperty != null && input.FilterValueIsNotEmpty != null && input.FilterPropertyType != null)
+        {
+            switch (input.FilterPropertyType)
+            {
+                case "date":
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, date = new { equals = input.FilterValueIsNotEmpty } } });
+                    break;
+                case "files":
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, files = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    break;
+                case "multi_select":
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, multi_select = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    break;
+                case "number":
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, number = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    break;
+                case "people":
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, people = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    break;
+                case "relation":
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, relation = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    break;
+                case "select":
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, select = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    break;
+                case "status":
+                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, status = new { is_not_empty = input.FilterValueIsNotEmpty } } });
+                    break;
+            }
+        }
 
         var response = await Client.PaginateWithBody<PageResponse>(request);
         var pages = response
