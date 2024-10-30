@@ -39,39 +39,36 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
     {
         var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds);
-        
-        if(input.FilterProperty != null && input.FilterValueIsEmpty != null && input.FilterPropertyType != null)
+        Dictionary<string, object>? bodyDictionary = null;
+
+        if(input.FilterProperty != null && input.FilterPropertyType != null)
         {
-            switch (input.FilterPropertyType)
+            if(input.FilterValue == null && input.FilterValueIsEmpty == null)
+                throw new("'Filter value' or 'Filter value must be empty' must be provided");
+            
+            var filterValueDict = new Dictionary<string, object>();
+            
+            if (input.FilterValueIsEmpty != null)
             {
-                case "date":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, date = new { is_not_empty = !input.FilterValueIsEmpty } } });
-                    break;
-                case "files":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, files = new { is_not_empty = !input.FilterValueIsEmpty } } });
-                    break;
-                case "multi_select":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, multi_select = new { is_not_empty = !input.FilterValueIsEmpty } } });
-                    break;
-                case "number":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, number = new { is_not_empty = !input.FilterValueIsEmpty } } });
-                    break;
-                case "people":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, people = new { is_not_empty = !input.FilterValueIsEmpty } } });
-                    break;
-                case "relation":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, relation = new { is_not_empty = !input.FilterValueIsEmpty } } });
-                    break;
-                case "select":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, select = new { is_not_empty = !input.FilterValueIsEmpty } } });
-                    break;
-                case "status":
-                    request.AddJsonBody(new { filter = new { property = input.FilterProperty, status = new { is_not_empty = !input.FilterValueIsEmpty } } });
-                    break;
+                filterValueDict["is_not_empty"] = !input.FilterValueIsEmpty;
             }
+
+            if (input.FilterValue != null)
+            {
+                filterValueDict["equals"] = input.FilterValue;
+            }
+            
+            bodyDictionary = new Dictionary<string, object>
+            {
+                ["filter"] = new Dictionary<string, object>
+                {
+                    ["property"] = input.FilterProperty,
+                    [input.FilterPropertyType] = filterValueDict
+                }
+            };
         }
 
-        var response = await Client.PaginateWithBody<PageResponse>(request);
+        var response = await Client.PaginateWithBody<PageResponse>(request, bodyDictionary);
         var pages = response
             .Where(x => x.LastEditedTime > (input.EditedSince ?? default))
             .Where(x => x.CreatedTime > (input.CreatedSince ?? default))

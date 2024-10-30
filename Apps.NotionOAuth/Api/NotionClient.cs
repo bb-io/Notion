@@ -67,16 +67,29 @@ public class NotionClient : BlackBirdRestClient
         return results;
     }
 
-    public async Task<List<T>> PaginateWithBody<T>(RestRequest request)
+    public async Task<List<T>> PaginateWithBody<T>(RestRequest request, Dictionary<string, object>? body = null)
     {
         string? cursor = null;
+
+        if (body != null)
+        {
+            request.AddJsonBody(body);
+        }
         
         var results = new List<T>();
         do
         {
             if (cursor is not null)
             {
-                request.AddJsonBody(new { start_cursor = cursor });
+                if(body != null)
+                {
+                    body["start_cursor"] = cursor;
+                    request.WithJsonBody(body);
+                }
+                else
+                {
+                    request.AddJsonBody(new { start_cursor = cursor });
+                }
             }
 
             var response = await ExecuteWithErrorHandling<PaginationResponse<T>>(request);

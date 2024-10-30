@@ -21,17 +21,20 @@ public class SearchPagesInDatabaseRequest : ListRequest
     [DataSource(typeof(SelectDatabasePropertyDataHandler))]
     public string? SelectProperty { get; set; }
 
-    [Display("Properties with value"), DataSource(typeof(AllDatabasePropertyDataHandler))]
+    [Display("Properties with value", Description = "DEPRECATED. This property will be used only to in-memory filtering"), DataSource(typeof(AllDatabasePropertyDataHandler))]
     public IEnumerable<string>? PropertiesShouldHaveValue { get; set; }
 
-    [Display("Properties without value"), DataSource(typeof(AllDatabasePropertyDataHandler))]
+    [Display("Properties without value", Description = "DEPRECATED. This property will be used only to in-memory filtering"), DataSource(typeof(AllDatabasePropertyDataHandler))]
     public IEnumerable<string>? PropertiesWithoutValues { get; set; }
 
     [Display("Filter property"), DataSource(typeof(AllDatabasePropertyDataHandler))]
     public string? FilterProperty { get; set; }
     
-    [Display("Filter value empty")]
+    [Display("Filter value must be empty")]
     public bool? FilterValueIsEmpty { get; set; }
+    
+    [Display("Filter value")]
+    public string? FilterValue { get; set; }
     
     [Display("Filter property type"), StaticDataSource(typeof(FilterPropertyTypeDataHandler))]
     public string? FilterPropertyType { get; set; }
