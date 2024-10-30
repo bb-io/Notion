@@ -18,12 +18,8 @@ using RestSharp;
 namespace Apps.NotionOAuth.Actions;
 
 [ActionList]
-public class DatabaseActions : NotionInvocable
+public class DatabaseActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
-    public DatabaseActions(InvocationContext invocationContext) : base(invocationContext)
-    {
-    }
-
     [Action("List databases", Description = "List all databases")]
     public async Task<ListDatabasesResponse> ListDatabases([ActionParameter] ListRequest input)
     {

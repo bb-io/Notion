@@ -12,12 +12,8 @@ using RestSharp;
 namespace Apps.NotionOAuth.Actions;
 
 [ActionList]
-public class UserActions : NotionInvocable
+public class UserActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
-    public UserActions(InvocationContext invocationContext) : base(invocationContext)
-    {
-    }
-
     [Action("List users", Description = "List all users")]
     public async Task<ListUsersResponse> ListUsers()
     {

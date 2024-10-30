@@ -15,12 +15,8 @@ using RestSharp;
 namespace Apps.NotionOAuth.Actions;
 
 [ActionList]
-public class CommentActions : NotionInvocable
+public class CommentActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
-    public CommentActions(InvocationContext invocationContext) : base(invocationContext)
-    {
-    }
-
     [Action("List comments", Description = "List all block comments")]
     public async Task<ListCommentsResponse> ListComments([ActionParameter] BlockRequest input)
     {
