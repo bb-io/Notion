@@ -39,8 +39,36 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
     {
         var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds);
+        Dictionary<string, object>? bodyDictionary = null;
 
-        var response = await Client.PaginateWithBody<PageResponse>(request);
+        if(input.FilterProperty != null && input.FilterPropertyType != null)
+        {
+            if(input.FilterValue == null && input.FilterValueIsEmpty == null)
+                throw new("'Filter value' or 'Filter value must be empty' must be provided");
+            
+            var filterValueDict = new Dictionary<string, object>();
+            
+            if (input.FilterValueIsEmpty != null)
+            {
+                filterValueDict["is_not_empty"] = !input.FilterValueIsEmpty;
+            }
+
+            if (input.FilterValue != null)
+            {
+                filterValueDict["equals"] = input.FilterValue;
+            }
+            
+            bodyDictionary = new Dictionary<string, object>
+            {
+                ["filter"] = new Dictionary<string, object>
+                {
+                    ["property"] = input.FilterProperty,
+                    [input.FilterPropertyType] = filterValueDict
+                }
+            };
+        }
+
+        var response = await Client.PaginateWithBody<PageResponse>(request, bodyDictionary);
         var pages = response
             .Where(x => x.LastEditedTime > (input.EditedSince ?? default))
             .Where(x => x.CreatedTime > (input.CreatedSince ?? default))
