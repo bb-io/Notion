@@ -346,15 +346,6 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     public async Task SetMultipleValueProperty([ActionParameter] SetPageMultipleValuePropertyRequest input)
     {
         var (name, property) = await GetPagePropertyWithName(input.PageId, input.PropertyId);
-        var propertyType = property["type"]!.ToString();
-
-        if (input.RemoveValues.HasValue && input.RemoveValues.Value)
-        {
-            var nullpayload = new JObject
-            { { $"{propertyType}", new JArray() } };
-            await UpdatePageProperty(input.PageId, name, nullpayload);
-            return;
-        }
 
         var newValues = input.Values;
 
@@ -364,7 +355,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             newValues = newValues.Concat(currentValues.PropertyValue);
         }
 
-        var payload = propertyType switch
+        var payload = property["type"]!.ToString() switch
         {
             "multi_select" => PagePropertyPayloadFactory.GetMultiSelect(newValues),
             "relation" => PagePropertyPayloadFactory.GetRelation(newValues),
@@ -398,6 +389,31 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         {
             "date" => PagePropertyPayloadFactory.GetDate(input.Date, input.EndDate, input.IncludeTime),
             _ => throw new ArgumentException("Given ID does not stand for a date value property")
+        };
+
+        await UpdatePageProperty(input.PageId, name, payload);
+    }
+
+    [Action("Set page property as empty", Description = "Remove values in a page property")]
+    public async Task SetEmptyValueProperty([ActionParameter] SetPagePropertyNullRequest input)
+    {
+        var (name, property) = await GetPagePropertyWithName(input.PageId, input.PropertyId);
+
+        var payload = property["type"]!.ToString() switch
+        {
+            "phone_number" => new JObject { { "phone_number", null } },
+            "email" => new JObject { { "email", null } },
+            "url" => new JObject { { "url", null } },
+            "number" => new JObject { { "number", null } },
+            "status" => new JObject { { "status", null } },
+            "select" => new JObject { { "select", null } },
+            "checkbox" => new JObject { { "checkbox", "false" } },
+            "multi_select" => new JObject{ { "multi_select", new JArray() } },
+            "rich_text" => new JObject { { "rich_text", new JArray() } },
+            "files" => new JObject { { "files", new JArray() } },
+            "relation" => new JObject { { "relation", new JArray() } },
+            "people" => new JObject { { "people", new JArray() } },
+            _ => throw new ArgumentException("Property cannot be updated")
         };
 
         await UpdatePageProperty(input.PageId, name, payload);
