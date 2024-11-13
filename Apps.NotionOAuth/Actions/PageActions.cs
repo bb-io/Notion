@@ -346,6 +346,15 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     public async Task SetMultipleValueProperty([ActionParameter] SetPageMultipleValuePropertyRequest input)
     {
         var (name, property) = await GetPagePropertyWithName(input.PageId, input.PropertyId);
+        var propertyType = property["type"]!.ToString();
+
+        if (input.RemoveValues.HasValue && input.RemoveValues.Value)
+        {
+            var nullpayload = new JObject
+         {  $"{propertyType}", null };
+            await UpdatePageProperty(input.PageId, name, nullpayload);
+            return;
+        }
 
         var newValues = input.Values;
 
@@ -355,7 +364,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             newValues = newValues.Concat(currentValues.PropertyValue);
         }
 
-        var payload = property["type"]!.ToString() switch
+        var payload = propertyType switch
         {
             "multi_select" => PagePropertyPayloadFactory.GetMultiSelect(newValues),
             "relation" => PagePropertyPayloadFactory.GetRelation(newValues),
@@ -365,7 +374,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         await UpdatePageProperty(input.PageId, name, payload);
     }
-    
+
     [Action("Set page files property", Description = "Set new value of a files page property")]
     public async Task SetFilesProperty([ActionParameter] SetPageFilesPropertyRequest input)
     {
