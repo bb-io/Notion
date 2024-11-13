@@ -351,7 +351,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         if (input.RemoveValues.HasValue && input.RemoveValues.Value)
         {
             var nullpayload = new JObject
-            { { $"{propertyType}", null } };
+            { { $"{propertyType}", new JArray() } };
             await UpdatePageProperty(input.PageId, name, nullpayload);
             return;
         }
