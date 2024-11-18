@@ -1,6 +1,17 @@
-﻿namespace Apps.NotionOAuth.Actions;
+﻿using Apps.NotionOAuth.Invocables;
+using Blackbird.Applications.Sdk.Common.Actions;
+using Blackbird.Applications.Sdk.Common.Authentication;
+using Blackbird.Applications.Sdk.Common.Invocation;
 
-public class DebugActions
+namespace Apps.NotionOAuth.Actions;
+
+[ActionList]
+public class DebugActions(InvocationContext invocationContext)
+    : NotionInvocable(invocationContext)
 {
-    
+    [Action("Debug", Description = "Debug action")]
+    public List<AuthenticationCredentialsProvider> Debug()
+    {
+        return Creds.ToList();
+    }
 }
