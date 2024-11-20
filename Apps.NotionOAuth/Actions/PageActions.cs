@@ -79,16 +79,13 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     public async Task<FileResponse> GetPageAsHtml(
         [ActionParameter] PageRequest page)
     {
-        var endpoint = $"{ApiEndpoints.Blocks}/{page.PageId}/children";
-        var request = new NotionRequest(endpoint, Method.Get, Creds);
-
-        var response = await Client.Paginate<JObject>(request);
+        var response = await GetAllBlockChildrenRecursively(page.PageId);
         var html = NotionHtmlParser.ParseBlocks(response.ToArray());
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(html));
         var file = await fileManagementClient.UploadAsync(stream, MediaTypeNames.Text.Html, $"{page.PageId}.html");
         return new() { File = file };
-    }   
+    }
     
     [Action("Get page as HTML (Debug)", Description = "Get content of a specific page as HTML (Debug)")]
     public async Task<PageContentResponse> GetPageAsHtmlDebug(
@@ -400,6 +397,39 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
     #region Utils
 
+    private async Task<List<JObject>> GetAllBlockChildrenRecursively(string blockId)
+    {
+        if (string.IsNullOrEmpty(blockId))
+        {
+            throw new ArgumentException("Block ID cannot be null or empty.", nameof(blockId));
+        }
+        
+        var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
+        var request = new NotionRequest(endpoint, Method.Get, Creds);
+        var allBlocks = await Client.Paginate<JObject>(request);
+        var childBlocksToAdd = new List<JObject>();
+        
+        foreach (var block in allBlocks)
+        {
+            var hasChildren = block["has_children"]?.ToObject<bool>() ?? false;
+            if (hasChildren)
+            {
+                var childBlocks = await GetAllBlockChildrenRecursively(block["id"]!.ToString());
+                childBlocksToAdd.AddRange(childBlocks);
+                
+                var blockIdValue = block["id"]?.ToString();
+                var childBlocksIds = childBlocks.Where(x => x["parent"]!["block_id"]?.ToString() == blockIdValue).Select(x => x["id"]!.ToString());
+                if (childBlocksIds.Any())
+                {
+                    block.Add("child_block_ids", JArray.FromObject(childBlocksIds));
+                }
+            }
+        }
+
+        allBlocks.AddRange(childBlocksToAdd);
+        return allBlocks;
+    }
+    
     private Task<JObject> GetPageProperty(string pageId, string propertyId)
     {
         var endpoint = $"{ApiEndpoints.Pages}/{pageId}/properties/{propertyId}";

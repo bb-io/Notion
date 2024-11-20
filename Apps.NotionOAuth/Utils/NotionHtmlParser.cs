@@ -30,9 +30,106 @@ public static class NotionHtmlParser
             .Where(x => x.Name != "#text")
             .ToArray();
 
-        return translatableNodes.Select(MapNodeToBlockChild).ToArray();
+        var jObjects = translatableNodes.Select(MapNodeToBlockChild).ToList();
+        var json = JsonConvert.SerializeObject(jObjects, Formatting.Indented); // this JSON I generated and gave you 
+        
+        var allBlocks = jObjects;
+        var processedIds = new HashSet<string>();
+        var childBlockIds = new HashSet<string>();
+
+        // Build a dictionary of blocks by their ID for quick lookup
+        var blocksById = allBlocks.Where(x => x["id"] != null)
+            .ToDictionary(x => x["id"]!.ToString());
+
+        // First, collect all child block IDs
+        foreach (var block in allBlocks)
+        {
+            if (block["child_block_ids"] != null)
+            {
+                List<string> childIds;
+                if (block["child_block_ids"]!.Type == JTokenType.String)
+                {
+                    childIds = JsonConvert.DeserializeObject<List<string>>(block["child_block_ids"]!.ToString()) ?? new();
+                }
+                else
+                {
+                    childIds = block["child_block_ids"]?.ToObject<List<string>>() ?? new();
+                }
+
+                foreach (var childId in childIds)
+                {
+                    childBlockIds.Add(childId);
+                }
+            }
+        }
+
+        var rootBlocks = new List<JObject>();
+
+        foreach (var block in allBlocks)
+        {
+            var id = block["id"]?.ToString();
+            if (id == null || !childBlockIds.Contains(id))
+            {
+                ProcessBlock(block, blocksById, processedIds);
+                rootBlocks.Add(block);
+            }
+        }
+
+        rootBlocks = rootBlocks.Where(x => !childBlockIds.Contains(x["id"]?.ToString())).ToList();
+        rootBlocks.ForEach(x => x.Remove("id"));
+        return rootBlocks.ToArray();
     }
 
+    private static void ProcessBlock(JObject block, Dictionary<string, JObject> blocksById, HashSet<string> processedIds)
+    {
+        var id = block["id"]?.ToString();
+
+        if (id != null)
+        {
+            if (processedIds.Contains(id))
+            {
+                // Avoid processing the same block multiple times (prevent cycles)
+                return;
+            }
+            processedIds.Add(id);
+        }
+
+        if (block["child_block_ids"] != null)
+        {
+            List<string> childIds;
+            if (block["child_block_ids"]!.Type == JTokenType.String)
+            {
+                childIds = JsonConvert.DeserializeObject<List<string>>(block["child_block_ids"]!.ToString()) ?? new();
+            }
+            else
+            {
+                childIds = block["child_block_ids"]?.ToObject<List<string>>() ?? new();
+            }
+
+            if (childIds.Count > 0)
+            {
+                var type = block["type"]!.ToString();
+                var children = new List<JObject>();
+
+                foreach (var childId in childIds)
+                {
+                    if (blocksById.TryGetValue(childId, out var childBlock))
+                    {
+                        ProcessBlock(childBlock, blocksById, processedIds);
+                        children.Add(childBlock);
+                    }
+                }
+
+                if (children.Count > 0)
+                {
+                    block[type]!["children"] = JArray.FromObject(children);
+                }
+            }
+
+            block.Remove("child_block_ids"); // Remove the child_block_ids after processing
+        }
+    }
+    
     public static string ParseBlocks(JObject[] blocks)
     {
         var htmlDoc = new HtmlDocument();
@@ -51,6 +148,7 @@ public static class NotionHtmlParser
                 continue;
 
             var content = block[type]!;
+            var id = block["id"]?.ToString();
 
             if (BlockIsUntranslatable(type, content))
                 continue;
@@ -68,9 +166,10 @@ public static class NotionHtmlParser
                 var updatedBlock = new JObject(block);
 
                 var originalBlock = block[type]!;
-                var url = originalBlock["file"]?["url"] ?? originalBlock["external"]?["url"] 
-                    ?? throw new Exception("We couldn't find the file url. Please send this error to the support team along with page ID.");
-                
+                var url = originalBlock["file"]?["url"] ?? originalBlock["external"]?["url"]
+                    ?? throw new Exception(
+                        "We couldn't find the file url. Please send this error to the support team along with page ID.");
+
                 updatedBlock[type] = new JObject
                 {
                     { "caption", originalBlock["caption"] },
@@ -87,7 +186,7 @@ public static class NotionHtmlParser
                 blockNode.SetAttributeValue(TypeAttr, "file");
                 blockNode.SetAttributeValue(UntranslatableContentAttr, updatedBlock.ToString());
                 bodyNode.AppendChild(blockNode);
-                
+
                 continue;
             }
             else if (textElements is null)
@@ -108,6 +207,11 @@ public static class NotionHtmlParser
 
             blockNode.SetAttributeValue(TypeAttr, type);
             blockNode.SetAttributeValue(ContentParamsAttr, new JObject(contentParams).ToString());
+            blockNode.SetAttributeValue("data-block-id", id);
+
+            if (block["child_block_ids"] is not null)
+                blockNode.SetAttributeValue("data-child-block-ids",
+                    JsonConvert.SerializeObject(block["child_block_ids"]));
 
             foreach (var titleModel in richText)
             {
@@ -228,11 +332,19 @@ public static class NotionHtmlParser
             { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) }
         };
 
+        string? childBlockIds = null;
+        if (node.Attributes["data-child-block-ids"] != null)
+        {
+            childBlockIds = node.Attributes["data-child-block-ids"]!.Value.Replace("&quot;", "\"");
+        }
+
         return new()
         {
             { "object", "block" },
             { "type", type },
             { type, content },
+            { "child_block_ids", childBlockIds },
+            { "id", node.Attributes["data-block-id"]?.Value }
         };
     }
 
