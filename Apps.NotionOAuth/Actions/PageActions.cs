@@ -111,7 +111,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         {
             BlockId = page.PageId
         });
-
+        
         // Can't remove all blocks in parallel, because it can cause rate limiting errors
         foreach (var child in children.Children)
         {
@@ -127,7 +127,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
                 // ignored
             }
         }
-
+        
         var fileStream = await fileManagementClient.DownloadAsync(file.File);
         var fileBytes = await fileStream.GetByteData();
         

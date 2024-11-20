@@ -18,7 +18,7 @@ public static class NotionHtmlParser
     private const string UntranslatableType = "untranslatable";
 
     private static readonly string[] UnparsableTypes =
-        { "child_page", "child_database", "unsupported", "file", "link_preview" };
+        { "child_page", "child_database", "unsupported", "link_preview" };
 
     private static readonly string[] TextTypes = { "rich_text", "text" };
 
@@ -63,7 +63,34 @@ public static class NotionHtmlParser
 
             var blockNode = htmlDoc.CreateElement("div");
 
-            if (textElements is null)
+            if (type == "file" || type == "audio")
+            {
+                var updatedBlock = new JObject(block);
+
+                var originalBlock = block[type]!;
+                var url = originalBlock["file"]?["url"] ?? originalBlock["external"]?["url"] 
+                    ?? throw new Exception("We couldn't find the file url. Please send this error to the support team along with page ID.");
+                
+                updatedBlock[type] = new JObject
+                {
+                    { "caption", originalBlock["caption"] },
+                    { "type", "external" },
+                    {
+                        "external", new JObject
+                        {
+                            { "url", url }
+                        }
+                    },
+                    { "name", originalBlock["name"] }
+                };
+
+                blockNode.SetAttributeValue(TypeAttr, "file");
+                blockNode.SetAttributeValue(UntranslatableContentAttr, updatedBlock.ToString());
+                bodyNode.AppendChild(blockNode);
+                
+                continue;
+            }
+            else if (textElements is null)
             {
                 blockNode.SetAttributeValue(TypeAttr, UntranslatableType);
                 blockNode.SetAttributeValue(UntranslatableContentAttr, block.ToString());
@@ -140,21 +167,25 @@ public static class NotionHtmlParser
         return type switch
         {
             UntranslatableType => JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue),
+            "file" => JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue),
             _ => ParseNode(node, type)
         };
     }
 
     public static JObject ParseText(string text)
     {
-        var richText = new[] { new TitleModel()
+        var richText = new[]
         {
-            Type = "text",
-            Text = new()
+            new TitleModel()
             {
-                Content = text,
-                Link = null
+                Type = "text",
+                Text = new()
+                {
+                    Content = text,
+                    Link = null
+                }
             }
-        } };
+        };
 
         var content = new JObject()
         {
@@ -166,13 +197,13 @@ public static class NotionHtmlParser
         {
             { "object", "block" },
             { "type", "paragraph" },
-            { "paragraph", content},
+            { "paragraph", content },
         };
     }
 
     private static JObject ParseNode(HtmlNode node, string type)
     {
-        var richText = node.ChildNodes.Select(x => new TitleModel()
+        var richText = node.ChildNodes.Select(x => new TitleModel
         {
             Type = "text",
             Annotations = ParseAnnotations(x.Attributes),
