@@ -367,7 +367,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         await UpdatePageProperty(input.PageId, name, payload);
     }
-    
+
     [Action("Set page files property", Description = "Set new value of a files page property")]
     public async Task SetFilesProperty([ActionParameter] SetPageFilesPropertyRequest input)
     {
@@ -391,6 +391,31 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         {
             "date" => PagePropertyPayloadFactory.GetDate(input.Date, input.EndDate, input.IncludeTime),
             _ => throw new ArgumentException("Given ID does not stand for a date value property")
+        };
+
+        await UpdatePageProperty(input.PageId, name, payload);
+    }
+
+    [Action("Set page property as empty", Description = "Remove values in a page property")]
+    public async Task SetEmptyValueProperty([ActionParameter] SetPagePropertyNullRequest input)
+    {
+        var (name, property) = await GetPagePropertyWithName(input.PageId, input.PropertyId);
+
+        var payload = property["type"]!.ToString() switch
+        {
+            "phone_number" => new JObject { { "phone_number", null } },
+            "email" => new JObject { { "email", null } },
+            "url" => new JObject { { "url", null } },
+            "number" => new JObject { { "number", null } },
+            "status" => new JObject { { "status", null } },
+            "select" => new JObject { { "select", null } },
+            "checkbox" => new JObject { { "checkbox", "false" } },
+            "multi_select" => new JObject{ { "multi_select", new JArray() } },
+            "rich_text" => new JObject { { "rich_text", new JArray() } },
+            "files" => new JObject { { "files", new JArray() } },
+            "relation" => new JObject { { "relation", new JArray() } },
+            "people" => new JObject { { "people", new JArray() } },
+            _ => throw new ArgumentException("Property cannot be updated")
         };
 
         await UpdatePageProperty(input.PageId, name, payload);

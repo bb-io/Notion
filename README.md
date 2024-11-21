@@ -52,6 +52,7 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 - **Create/Update page from HTML** create/updates page from an HTML file.
 - **Get page string/number/date/boolean/files/multiple property** returns the value of a database entry's property of specific type.
 - **Set page string/number/boolean/files/multiple property** updates the value of a database entry's property of specific type.
+- **Set page property as empty**
 - **Create/Get/Archive page**
 
 ### Users
