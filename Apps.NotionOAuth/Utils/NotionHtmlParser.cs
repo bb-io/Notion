@@ -16,29 +16,141 @@ public static class NotionHtmlParser
     private const string ContentParamsAttr = "data-content-params";
     private const string UntranslatableContentAttr = "data-untranslatable";
     private const string UntranslatableType = "untranslatable";
+    private const string ChildBlockIds = "child_block_ids";
+    private const string BlockIdAttr = "data-block-id";
+    private const string ChildBlockIdsAttr = "data-child-block-ids";
+    private const string BlackbirdPageIdAttr = "blackbird-page-id";
 
     private static readonly string[] UnparsableTypes =
-        { "child_page", "child_database", "unsupported", "file", "link_preview" };
+        { "child_page", "child_database", "unsupported", "file", "audio", "link_preview" };
 
     private static readonly string[] TextTypes = { "rich_text", "text" };
 
-    public static JObject[] ParseHtml(byte[] file)
+    public static JObject[] ParseHtml(string html)
     {
-        var html = Encoding.UTF8.GetString(file).AsHtmlDocument();
-        var translatableNodes = html.DocumentNode.SelectSingleNode("/html/body")
+        var htmlDoc = html.AsHtmlDocument();
+        var translatableNodes = htmlDoc.DocumentNode.SelectSingleNode("/html/body")
             .ChildNodes
             .Where(x => x.Name != "#text")
             .ToArray();
 
-        return translatableNodes.Select(MapNodeToBlockChild).ToArray();
+        var jObjects = translatableNodes.Select(MapNodeToBlockChild).ToList();
+        
+        var allBlocks = jObjects;
+        var processedIds = new HashSet<string>();
+        var childBlockIds = new HashSet<string>();
+
+        var blocksById = allBlocks.Where(x => x["id"] != null)
+            .ToDictionary(x => x["id"]!.ToString());
+
+        foreach (var block in allBlocks)
+        {
+            if (block[ChildBlockIds] != null)
+            {
+                List<string> childIds;
+                if (block[ChildBlockIds]!.Type == JTokenType.String)
+                {
+                    childIds = JsonConvert.DeserializeObject<List<string>>(block[ChildBlockIds]!.ToString()) ?? new();
+                }
+                else
+                {
+                    childIds = block[ChildBlockIds]?.ToObject<List<string>>() ?? new();
+                }
+
+                foreach (var childId in childIds)
+                {
+                    childBlockIds.Add(childId);
+                }
+            }
+        }
+
+        var rootBlocks = new List<JObject>();
+
+        foreach (var block in allBlocks)
+        {
+            var id = block["id"]?.ToString();
+            if (id == null || !childBlockIds.Contains(id))
+            {
+                ProcessBlock(block, blocksById, processedIds);
+                rootBlocks.Add(block);
+            }
+        }
+
+        rootBlocks = rootBlocks.Where(x => !childBlockIds.Contains(x["id"]?.ToString())).ToList();
+        rootBlocks.ForEach(x => x.Remove("id"));
+        return rootBlocks.ToArray();
     }
 
-    public static string ParseBlocks(JObject[] blocks)
+    private static void ProcessBlock(JObject block, Dictionary<string, JObject> blocksById, HashSet<string> processedIds)
+    {
+        var id = block["id"]?.ToString();
+
+        if (id != null)
+        {
+            if (processedIds.Contains(id))
+            {
+                return;
+            }
+            
+            processedIds.Add(id);
+        }
+
+        if (block[ChildBlockIds] != null)
+        {
+            List<string> childIds;
+            if (block[ChildBlockIds]!.Type == JTokenType.String)
+            {
+                childIds = JsonConvert.DeserializeObject<List<string>>(block[ChildBlockIds]!.ToString()) ?? new();
+            }
+            else
+            {
+                childIds = block[ChildBlockIds]?.ToObject<List<string>>() ?? new();
+            }
+
+            if (childIds.Count > 0)
+            {
+                var type = block["type"]!.ToString();
+                var children = new List<JObject>();
+
+                foreach (var childId in childIds)
+                {
+                    if (blocksById.TryGetValue(childId, out var childBlock))
+                    {
+                        ProcessBlock(childBlock, blocksById, processedIds);
+                        children.Add(childBlock);
+                    }
+                }
+
+                if (children.Count > 0)
+                {
+                    block[type]!["children"] = JArray.FromObject(children);
+                }
+            }
+
+            block.Remove(ChildBlockIds);
+        }
+    }
+
+    public static string? ExtractPageId(string html)
+    {
+        var htmlDoc = html.AsHtmlDocument();
+        var metaNode = htmlDoc.DocumentNode.SelectSingleNode($"/html/head/meta[@name='{BlackbirdPageIdAttr}']");
+        return metaNode?.Attributes["content"]?.Value;
+    }
+    
+    public static string ParseBlocks(string pageId, JObject[] blocks)
     {
         var htmlDoc = new HtmlDocument();
         var htmlNode = htmlDoc.CreateElement("html");
         htmlDoc.DocumentNode.AppendChild(htmlNode);
-        htmlNode.AppendChild(htmlDoc.CreateElement("head"));
+        
+        var headNode = htmlDoc.CreateElement("head");
+        htmlNode.AppendChild(headNode);
+        
+        var metaNode = htmlDoc.CreateElement("meta");
+        metaNode.SetAttributeValue("name", BlackbirdPageIdAttr);
+        metaNode.SetAttributeValue("content", pageId);
+        headNode.AppendChild(metaNode);
 
         var bodyNode = htmlDoc.CreateElement("body");
         htmlNode.AppendChild(bodyNode);
@@ -51,6 +163,7 @@ public static class NotionHtmlParser
                 continue;
 
             var content = block[type]!;
+            var id = block["id"]?.ToString();
 
             if (BlockIsUntranslatable(type, content))
                 continue;
@@ -81,6 +194,11 @@ public static class NotionHtmlParser
 
             blockNode.SetAttributeValue(TypeAttr, type);
             blockNode.SetAttributeValue(ContentParamsAttr, new JObject(contentParams).ToString());
+            blockNode.SetAttributeValue(BlockIdAttr, id);
+
+            if (block[ChildBlockIds] is not null)
+                blockNode.SetAttributeValue(ChildBlockIdsAttr,
+                    JsonConvert.SerializeObject(block[ChildBlockIds]));
 
             foreach (var titleModel in richText)
             {
@@ -110,7 +228,93 @@ public static class NotionHtmlParser
 
         return htmlDoc.DocumentNode.OuterHtml;
     }
+    
+    public static JObject ParseText(string text)
+    {
+        var richText = new[]
+        {
+            new TitleModel()
+            {
+                Type = "text",
+                Text = new()
+                {
+                    Content = text,
+                    Link = null
+                }
+            }
+        };
 
+        var content = new JObject()
+        {
+            { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) },
+            { "color", "default" }
+        };
+
+        return new()
+        {
+            { "object", "block" },
+            { "type", "paragraph" },
+            { "paragraph", content },
+        };
+    }
+
+    private static JObject ParseNode(HtmlNode node, string type)
+    {
+        var richText = node.ChildNodes.Select(x => new TitleModel
+        {
+            Type = "text",
+            Annotations = ParseAnnotations(x.Attributes),
+            Text = new()
+            {
+                Content = x.InnerText,
+                Link = x.Attributes["href"]?.Value is null
+                    ? null
+                    : new()
+                    {
+                        Url = x.Attributes["href"].Value
+                    }
+            }
+        }).ToArray();
+
+        var contextParams = new JObject();
+        if (node.Attributes[ContentParamsAttr] != null)
+            contextParams = JObject.Parse(node.Attributes[ContentParamsAttr]!.DeEntitizeValue);
+
+        var content = new JObject(contextParams)
+        {
+            { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) }
+        };
+
+        string? childBlockIds = null;
+        if (node.Attributes[ChildBlockIdsAttr] != null)
+        {
+            childBlockIds = node.Attributes[ChildBlockIdsAttr]!.Value.Replace("&quot;", "\"");
+        }
+
+        return new()
+        {
+            { "object", "block" },
+            { "type", type },
+            { type, content },
+            { ChildBlockIds, childBlockIds },
+            { "id", node.Attributes[BlockIdAttr]?.Value }
+        };
+    }
+
+    private static AnnotationsModel? ParseAnnotations(HtmlAttributeCollection attr)
+    {
+        var data = attr[AnnotationsAttr]?.Value;
+
+        if (data is null)
+            return null;
+
+        var annotations = data
+            .Split(';')
+            .ToDictionary(x => x.Split('=')[0], x => x.Split('=')[1]);
+
+        return JObject.FromObject(annotations).ToObject<AnnotationsModel>();
+    }
+    
     private static void RemoveEmptyUrls(JObject block)
     {
         block.Descendants().OfType<JProperty>()
@@ -142,80 +346,5 @@ public static class NotionHtmlParser
             UntranslatableType => JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue),
             _ => ParseNode(node, type)
         };
-    }
-
-    public static JObject ParseText(string text)
-    {
-        var richText = new[] { new TitleModel()
-        {
-            Type = "text",
-            Text = new()
-            {
-                Content = text,
-                Link = null
-            }
-        } };
-
-        var content = new JObject()
-        {
-            { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) },
-            { "color", "default" }
-        };
-
-        return new()
-        {
-            { "object", "block" },
-            { "type", "paragraph" },
-            { "paragraph", content},
-        };
-    }
-
-    private static JObject ParseNode(HtmlNode node, string type)
-    {
-        var richText = node.ChildNodes.Select(x => new TitleModel()
-        {
-            Type = "text",
-            Annotations = ParseAnnotations(x.Attributes),
-            Text = new()
-            {
-                Content = x.InnerText,
-                Link = x.Attributes["href"]?.Value is null
-                    ? null
-                    : new()
-                    {
-                        Url = x.Attributes["href"].Value
-                    }
-            }
-        }).ToArray();
-
-        var contextParams = new JObject();
-        if (node.Attributes[ContentParamsAttr] != null)
-            contextParams = JObject.Parse(node.Attributes[ContentParamsAttr]!.DeEntitizeValue);
-
-        var content = new JObject(contextParams)
-        {
-            { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) }
-        };
-
-        return new()
-        {
-            { "object", "block" },
-            { "type", type },
-            { type, content },
-        };
-    }
-
-    private static AnnotationsModel? ParseAnnotations(HtmlAttributeCollection attr)
-    {
-        var data = attr[AnnotationsAttr]?.Value;
-
-        if (data is null)
-            return null;
-
-        var annotations = data
-            .Split(';')
-            .ToDictionary(x => x.Split('=')[0], x => x.Split('=')[1]);
-
-        return JObject.FromObject(annotations).ToObject<AnnotationsModel>();
     }
 }

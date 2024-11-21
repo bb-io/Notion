@@ -69,7 +69,7 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 
 ## HTML Conversion
 
-Blackbird is able to convert `Page` content to an HTML file and back, so that it is possible to translate Notion content automatically via Blackbird.  For example, you can do a combination like "Notion: Get page as HTML" -> "DeepL: Translate" -> "Notion: Update page from HTML". Untranslatable content will be transferred back as well, except of several types like: Reference, Image, File, Link. These types won't be transferred for now, but we are constantly working to make it better.
+Blackbird is able to convert `Page` content to an HTML file and back, so that it is possible to translate Notion content automatically via Blackbird.  For example, you can do a combination like "Notion: Get page as HTML" -> "DeepL: Translate" -> "Notion: Update page from HTML". Untranslatable content will be transferred back as well, except of several types like: Reference, File, Child page and Audio. These types won't be transferred for now (after updating the page, these elements will be moved to the top of the page, but they will not be deleted), but we are constantly working to make it better.
   
 ## Feedback  
   

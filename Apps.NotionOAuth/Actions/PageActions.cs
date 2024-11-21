@@ -68,8 +68,9 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var page = await CreatePage(input);
         var fileStream = await fileManagementClient.DownloadAsync(file.File);
         var fileBytes = await fileStream.GetByteData();
-
-        var blocks = NotionHtmlParser.ParseHtml(fileBytes);
+        var html = Encoding.UTF8.GetString(fileBytes);
+        
+        var blocks = NotionHtmlParser.ParseHtml(html);
         await new BlockActions(InvocationContext).AppendBlockChildren(page.Id, blocks);
 
         return page;
@@ -79,16 +80,13 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     public async Task<FileResponse> GetPageAsHtml(
         [ActionParameter] PageRequest page)
     {
-        var endpoint = $"{ApiEndpoints.Blocks}/{page.PageId}/children";
-        var request = new NotionRequest(endpoint, Method.Get, Creds);
-
-        var response = await Client.Paginate<JObject>(request);
-        var html = NotionHtmlParser.ParseBlocks(response.ToArray());
+        var response = await GetAllBlockChildrenRecursively(page.PageId);
+        var html = NotionHtmlParser.ParseBlocks(page.PageId, response.ToArray());
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(html));
         var file = await fileManagementClient.UploadAsync(stream, MediaTypeNames.Text.Html, $"{page.PageId}.html");
         return new() { File = file };
-    }   
+    }
     
     [Action("Get page as HTML (Debug)", Description = "Get content of a specific page as HTML (Debug)")]
     public async Task<PageContentResponse> GetPageAsHtmlDebug(
@@ -103,36 +101,46 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
     [Action("Update page from HTML", Description = "Update specific page from an HTML file")]
     public async Task UpdatePageFromHtml(
-        [ActionParameter] PageRequest page,
+        [ActionParameter] PageOptionalRequest page,
         [ActionParameter] FileRequest file)
     {
+        var fileStream = await fileManagementClient.DownloadAsync(file.File);
+        var fileBytes = await fileStream.GetByteData();
+        var html = Encoding.UTF8.GetString(fileBytes);
+        
+        var extractedPageId = NotionHtmlParser.ExtractPageId(html);
+        var pageId = page.PageId ?? extractedPageId 
+            ?? throw new("Could not extract page ID from HTML. Please provide a page ID in optional input");
+        
         var actions = new BlockActions(InvocationContext);
         var children = await actions.ListBlockChildren(new()
         {
-            BlockId = page.PageId
+            BlockId = pageId
         });
-
+        
+        var excludeChildTypes = new[] { "file", "audio" };
+        
         // Can't remove all blocks in parallel, because it can cause rate limiting errors
         foreach (var child in children.Children)
         {
             try
             {
-                await actions.DeleteBlock(new()
+                if (!excludeChildTypes.Contains(child.Type))
                 {
-                    BlockId = child.Id
-                });
+                    await actions.DeleteBlock(new()
+                    {
+                        BlockId = child.Id
+                    });
+                }
             }
             catch
             {
                 // ignored
             }
         }
-
-        var fileStream = await fileManagementClient.DownloadAsync(file.File);
-        var fileBytes = await fileStream.GetByteData();
         
-        var blocks = NotionHtmlParser.ParseHtml(fileBytes);
-        await actions.AppendBlockChildren(page.PageId, blocks);
+        var blocks = NotionHtmlParser.ParseHtml(html);
+        await actions.AppendBlockChildren(pageId, blocks);
     }
 
     [Action("Get page", Description = "Get details of a specific page")]
@@ -425,6 +433,39 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
     #region Utils
 
+    private async Task<List<JObject>> GetAllBlockChildrenRecursively(string blockId)
+    {
+        if (string.IsNullOrEmpty(blockId))
+        {
+            throw new ArgumentException("Block ID cannot be null or empty.", nameof(blockId));
+        }
+        
+        var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
+        var request = new NotionRequest(endpoint, Method.Get, Creds);
+        var allBlocks = await Client.Paginate<JObject>(request);
+        var childBlocksToAdd = new List<JObject>();
+        
+        foreach (var block in allBlocks)
+        {
+            var hasChildren = block["has_children"]?.ToObject<bool>() ?? false;
+            if (hasChildren)
+            {
+                var childBlocks = await GetAllBlockChildrenRecursively(block["id"]!.ToString());
+                childBlocksToAdd.AddRange(childBlocks);
+                
+                var blockIdValue = block["id"]?.ToString();
+                var childBlocksIds = childBlocks.Where(x => x["parent"]!["block_id"]?.ToString() == blockIdValue).Select(x => x["id"]!.ToString());
+                if (childBlocksIds.Any())
+                {
+                    block.Add("child_block_ids", JArray.FromObject(childBlocksIds));
+                }
+            }
+        }
+
+        allBlocks.AddRange(childBlocksToAdd);
+        return allBlocks;
+    }
+    
     private Task<JObject> GetPageProperty(string pageId, string propertyId)
     {
         var endpoint = $"{ApiEndpoints.Pages}/{pageId}/properties/{propertyId}";
