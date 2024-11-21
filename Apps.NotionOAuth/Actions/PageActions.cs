@@ -68,8 +68,9 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var page = await CreatePage(input);
         var fileStream = await fileManagementClient.DownloadAsync(file.File);
         var fileBytes = await fileStream.GetByteData();
-
-        var blocks = NotionHtmlParser.ParseHtml(fileBytes);
+        var html = Encoding.UTF8.GetString(fileBytes);
+        
+        var blocks = NotionHtmlParser.ParseHtml(html);
         await new BlockActions(InvocationContext).AppendBlockChildren(page.Id, blocks);
 
         return page;
@@ -80,7 +81,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         [ActionParameter] PageRequest page)
     {
         var response = await GetAllBlockChildrenRecursively(page.PageId);
-        var html = NotionHtmlParser.ParseBlocks(response.ToArray());
+        var html = NotionHtmlParser.ParseBlocks(page.PageId, response.ToArray());
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(html));
         var file = await fileManagementClient.UploadAsync(stream, MediaTypeNames.Text.Html, $"{page.PageId}.html");
@@ -100,20 +101,22 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
     [Action("Update page from HTML", Description = "Update specific page from an HTML file")]
     public async Task UpdatePageFromHtml(
-        [ActionParameter] PageRequest page,
+        [ActionParameter] PageOptionalRequest page,
         [ActionParameter] FileRequest file)
     {
+        var fileStream = await fileManagementClient.DownloadAsync(file.File);
+        var fileBytes = await fileStream.GetByteData();
+        var html = Encoding.UTF8.GetString(fileBytes);
+        
+        var extractedPageId = NotionHtmlParser.ExtractPageId(html);
+        var pageId = page.PageId ?? extractedPageId 
+            ?? throw new("Could not extract page ID from HTML. Please provide a page ID in optional input");
+        
         var actions = new BlockActions(InvocationContext);
         var children = await actions.ListBlockChildren(new()
         {
-            BlockId = page.PageId
+            BlockId = pageId
         });
-        
-        var fileStream = await fileManagementClient.DownloadAsync(file.File);
-        var fileBytes = await fileStream.GetByteData();
-        
-        var blocks = NotionHtmlParser.ParseHtml(fileBytes);
-        await actions.AppendBlockChildren(page.PageId, blocks);
         
         var excludeChildTypes = new[] { "file", "audio" };
         
@@ -135,6 +138,9 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
                 // ignored
             }
         }
+        
+        var blocks = NotionHtmlParser.ParseHtml(html);
+        await actions.AppendBlockChildren(pageId, blocks);
     }
 
     [Action("Get page", Description = "Get details of a specific page")]

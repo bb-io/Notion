@@ -19,16 +19,17 @@ public static class NotionHtmlParser
     private const string ChildBlockIds = "child_block_ids";
     private const string BlockIdAttr = "data-block-id";
     private const string ChildBlockIdsAttr = "data-child-block-ids";
+    private const string BlackbirdPageIdAttr = "blackbird-page-id";
 
     private static readonly string[] UnparsableTypes =
         { "child_page", "child_database", "unsupported", "file", "audio", "link_preview" };
 
     private static readonly string[] TextTypes = { "rich_text", "text" };
 
-    public static JObject[] ParseHtml(byte[] file)
+    public static JObject[] ParseHtml(string html)
     {
-        var html = Encoding.UTF8.GetString(file).AsHtmlDocument();
-        var translatableNodes = html.DocumentNode.SelectSingleNode("/html/body")
+        var htmlDoc = html.AsHtmlDocument();
+        var translatableNodes = htmlDoc.DocumentNode.SelectSingleNode("/html/body")
             .ChildNodes
             .Where(x => x.Name != "#text")
             .ToArray();
@@ -129,13 +130,27 @@ public static class NotionHtmlParser
             block.Remove(ChildBlockIds);
         }
     }
+
+    public static string? ExtractPageId(string html)
+    {
+        var htmlDoc = html.AsHtmlDocument();
+        var metaNode = htmlDoc.DocumentNode.SelectSingleNode($"/html/head/meta[@name='{BlackbirdPageIdAttr}']");
+        return metaNode?.Attributes["content"]?.Value;
+    }
     
-    public static string ParseBlocks(JObject[] blocks)
+    public static string ParseBlocks(string pageId, JObject[] blocks)
     {
         var htmlDoc = new HtmlDocument();
         var htmlNode = htmlDoc.CreateElement("html");
         htmlDoc.DocumentNode.AppendChild(htmlNode);
-        htmlNode.AppendChild(htmlDoc.CreateElement("head"));
+        
+        var headNode = htmlDoc.CreateElement("head");
+        htmlNode.AppendChild(headNode);
+        
+        var metaNode = htmlDoc.CreateElement("meta");
+        metaNode.SetAttributeValue("name", BlackbirdPageIdAttr);
+        metaNode.SetAttributeValue("content", pageId);
+        headNode.AppendChild(metaNode);
 
         var bodyNode = htmlDoc.CreateElement("body");
         htmlNode.AppendChild(bodyNode);
