@@ -16,9 +16,12 @@ public static class NotionHtmlParser
     private const string ContentParamsAttr = "data-content-params";
     private const string UntranslatableContentAttr = "data-untranslatable";
     private const string UntranslatableType = "untranslatable";
+    private const string ChildBlockIds = "child_block_ids";
+    private const string BlockIdAttr = "data-block-id";
+    private const string ChildBlockIdsAttr = "data-child-block-ids";
 
     private static readonly string[] UnparsableTypes =
-        { "child_page", "child_database", "unsupported", "link_preview" };
+        { "child_page", "child_database", "unsupported", "file", "audio", "link_preview" };
 
     private static readonly string[] TextTypes = { "rich_text", "text" };
 
@@ -31,29 +34,26 @@ public static class NotionHtmlParser
             .ToArray();
 
         var jObjects = translatableNodes.Select(MapNodeToBlockChild).ToList();
-        var json = JsonConvert.SerializeObject(jObjects, Formatting.Indented); // this JSON I generated and gave you 
         
         var allBlocks = jObjects;
         var processedIds = new HashSet<string>();
         var childBlockIds = new HashSet<string>();
 
-        // Build a dictionary of blocks by their ID for quick lookup
         var blocksById = allBlocks.Where(x => x["id"] != null)
             .ToDictionary(x => x["id"]!.ToString());
 
-        // First, collect all child block IDs
         foreach (var block in allBlocks)
         {
-            if (block["child_block_ids"] != null)
+            if (block[ChildBlockIds] != null)
             {
                 List<string> childIds;
-                if (block["child_block_ids"]!.Type == JTokenType.String)
+                if (block[ChildBlockIds]!.Type == JTokenType.String)
                 {
-                    childIds = JsonConvert.DeserializeObject<List<string>>(block["child_block_ids"]!.ToString()) ?? new();
+                    childIds = JsonConvert.DeserializeObject<List<string>>(block[ChildBlockIds]!.ToString()) ?? new();
                 }
                 else
                 {
-                    childIds = block["child_block_ids"]?.ToObject<List<string>>() ?? new();
+                    childIds = block[ChildBlockIds]?.ToObject<List<string>>() ?? new();
                 }
 
                 foreach (var childId in childIds)
@@ -88,22 +88,22 @@ public static class NotionHtmlParser
         {
             if (processedIds.Contains(id))
             {
-                // Avoid processing the same block multiple times (prevent cycles)
                 return;
             }
+            
             processedIds.Add(id);
         }
 
-        if (block["child_block_ids"] != null)
+        if (block[ChildBlockIds] != null)
         {
             List<string> childIds;
-            if (block["child_block_ids"]!.Type == JTokenType.String)
+            if (block[ChildBlockIds]!.Type == JTokenType.String)
             {
-                childIds = JsonConvert.DeserializeObject<List<string>>(block["child_block_ids"]!.ToString()) ?? new();
+                childIds = JsonConvert.DeserializeObject<List<string>>(block[ChildBlockIds]!.ToString()) ?? new();
             }
             else
             {
-                childIds = block["child_block_ids"]?.ToObject<List<string>>() ?? new();
+                childIds = block[ChildBlockIds]?.ToObject<List<string>>() ?? new();
             }
 
             if (childIds.Count > 0)
@@ -126,7 +126,7 @@ public static class NotionHtmlParser
                 }
             }
 
-            block.Remove("child_block_ids"); // Remove the child_block_ids after processing
+            block.Remove(ChildBlockIds);
         }
     }
     
@@ -161,35 +161,7 @@ public static class NotionHtmlParser
 
             var blockNode = htmlDoc.CreateElement("div");
 
-            if (type == "file" || type == "audio")
-            {
-                var updatedBlock = new JObject(block);
-
-                var originalBlock = block[type]!;
-                var url = originalBlock["file"]?["url"] ?? originalBlock["external"]?["url"]
-                    ?? throw new Exception(
-                        "We couldn't find the file url. Please send this error to the support team along with page ID.");
-
-                updatedBlock[type] = new JObject
-                {
-                    { "caption", originalBlock["caption"] },
-                    { "type", "external" },
-                    {
-                        "external", new JObject
-                        {
-                            { "url", url }
-                        }
-                    },
-                    { "name", originalBlock["name"] }
-                };
-
-                blockNode.SetAttributeValue(TypeAttr, "file");
-                blockNode.SetAttributeValue(UntranslatableContentAttr, updatedBlock.ToString());
-                bodyNode.AppendChild(blockNode);
-
-                continue;
-            }
-            else if (textElements is null)
+            if (textElements is null)
             {
                 blockNode.SetAttributeValue(TypeAttr, UntranslatableType);
                 blockNode.SetAttributeValue(UntranslatableContentAttr, block.ToString());
@@ -207,11 +179,11 @@ public static class NotionHtmlParser
 
             blockNode.SetAttributeValue(TypeAttr, type);
             blockNode.SetAttributeValue(ContentParamsAttr, new JObject(contentParams).ToString());
-            blockNode.SetAttributeValue("data-block-id", id);
+            blockNode.SetAttributeValue(BlockIdAttr, id);
 
-            if (block["child_block_ids"] is not null)
-                blockNode.SetAttributeValue("data-child-block-ids",
-                    JsonConvert.SerializeObject(block["child_block_ids"]));
+            if (block[ChildBlockIds] is not null)
+                blockNode.SetAttributeValue(ChildBlockIdsAttr,
+                    JsonConvert.SerializeObject(block[ChildBlockIds]));
 
             foreach (var titleModel in richText)
             {
@@ -241,41 +213,7 @@ public static class NotionHtmlParser
 
         return htmlDoc.DocumentNode.OuterHtml;
     }
-
-    private static void RemoveEmptyUrls(JObject block)
-    {
-        block.Descendants().OfType<JProperty>()
-            .Where(x => x is { Name: "url" } && x.Value.ToString() == "#")
-            .ToList()
-            .ForEach(x => x.Value = null);
-    }
-
-    private static bool BlockIsUntranslatable(string type, JToken content)
-    {
-        if (type == "column_list" && !content.Children().Any())
-            return true;
-
-        if (type == "image" && content["type"].ToString() != "external")
-            return true;
-
-        if (type == "callout" && content["icon"]["type"].ToString() == "file")
-            (content as JObject).Remove("icon");
-
-        return false;
-    }
-
-    private static JObject MapNodeToBlockChild(HtmlNode node)
-    {
-        var type = node.Attributes[TypeAttr] != null ? node.Attributes[TypeAttr]!.Value : "paragraph";
-
-        return type switch
-        {
-            UntranslatableType => JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue),
-            "file" => JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue),
-            _ => ParseNode(node, type)
-        };
-    }
-
+    
     public static JObject ParseText(string text)
     {
         var richText = new[]
@@ -333,9 +271,9 @@ public static class NotionHtmlParser
         };
 
         string? childBlockIds = null;
-        if (node.Attributes["data-child-block-ids"] != null)
+        if (node.Attributes[ChildBlockIdsAttr] != null)
         {
-            childBlockIds = node.Attributes["data-child-block-ids"]!.Value.Replace("&quot;", "\"");
+            childBlockIds = node.Attributes[ChildBlockIdsAttr]!.Value.Replace("&quot;", "\"");
         }
 
         return new()
@@ -343,8 +281,8 @@ public static class NotionHtmlParser
             { "object", "block" },
             { "type", type },
             { type, content },
-            { "child_block_ids", childBlockIds },
-            { "id", node.Attributes["data-block-id"]?.Value }
+            { ChildBlockIds, childBlockIds },
+            { "id", node.Attributes[BlockIdAttr]?.Value }
         };
     }
 
@@ -360,5 +298,38 @@ public static class NotionHtmlParser
             .ToDictionary(x => x.Split('=')[0], x => x.Split('=')[1]);
 
         return JObject.FromObject(annotations).ToObject<AnnotationsModel>();
+    }
+    
+    private static void RemoveEmptyUrls(JObject block)
+    {
+        block.Descendants().OfType<JProperty>()
+            .Where(x => x is { Name: "url" } && x.Value.ToString() == "#")
+            .ToList()
+            .ForEach(x => x.Value = null);
+    }
+
+    private static bool BlockIsUntranslatable(string type, JToken content)
+    {
+        if (type == "column_list" && !content.Children().Any())
+            return true;
+
+        if (type == "image" && content["type"].ToString() != "external")
+            return true;
+
+        if (type == "callout" && content["icon"]["type"].ToString() == "file")
+            (content as JObject).Remove("icon");
+
+        return false;
+    }
+
+    private static JObject MapNodeToBlockChild(HtmlNode node)
+    {
+        var type = node.Attributes[TypeAttr] != null ? node.Attributes[TypeAttr]!.Value : "paragraph";
+
+        return type switch
+        {
+            UntranslatableType => JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue),
+            _ => ParseNode(node, type)
+        };
     }
 }

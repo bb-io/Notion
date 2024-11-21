@@ -109,27 +109,32 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             BlockId = page.PageId
         });
         
+        var fileStream = await fileManagementClient.DownloadAsync(file.File);
+        var fileBytes = await fileStream.GetByteData();
+        
+        var blocks = NotionHtmlParser.ParseHtml(fileBytes);
+        await actions.AppendBlockChildren(page.PageId, blocks);
+        
+        var excludeChildTypes = new[] { "file", "audio" };
+        
         // Can't remove all blocks in parallel, because it can cause rate limiting errors
         foreach (var child in children.Children)
         {
             try
             {
-                await actions.DeleteBlock(new()
+                if (!excludeChildTypes.Contains(child.Type))
                 {
-                    BlockId = child.Id
-                });
+                    await actions.DeleteBlock(new()
+                    {
+                        BlockId = child.Id
+                    });
+                }
             }
             catch
             {
                 // ignored
             }
         }
-        
-        var fileStream = await fileManagementClient.DownloadAsync(file.File);
-        var fileBytes = await fileStream.GetByteData();
-        
-        var blocks = NotionHtmlParser.ParseHtml(fileBytes);
-        await actions.AppendBlockChildren(page.PageId, blocks);
     }
 
     [Action("Get page", Description = "Get details of a specific page")]
