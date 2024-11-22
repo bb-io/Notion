@@ -88,56 +88,6 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         return new() { File = file };
     }
     
-    [Action("Add file to the page", Description = "Test action")]
-    public async Task<string> AddFileToPage([ActionParameter] PageRequest input)
-    {
-        try
-        {
-            var url =
-                @"https://prod-files-secure.s3.us-west-2.amazonaws.com/76cfbe77-bdce-4af5-91d0-f144250caa8e/41f10197-dc79-4bea-b263-12aefd343805/Notion_investigation.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAT73L2G45FSPPWI6X%2F20241122%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20241122T155904Z&X-Amz-Expires=3600&X-Amz-Signature=105923f3faf908e3cc39db43d9ca0b8c4a5fc758e4f990cf544ae4566250a26d&X-Amz-SignedHeaders=host&x-id=GetObject";
-
-            var restClient = new RestClient(url);
-            var restRequest = new RestRequest(string.Empty, Method.Get);
-
-            var response = await restClient.ExecuteAsync(restRequest);
-
-            var fileStream = new MemoryStream(response.RawBytes!);
-            fileStream.Position = 0;
-
-            var fileBytes = await fileStream.GetByteData();
-            var memoryStream = new MemoryStream(fileBytes);
-            memoryStream.Position = 0;
-
-            var fileReference = await fileManagementClient.UploadAsync(memoryStream, MediaTypeNames.Application.Pdf,
-                "Notion_investigation.pdf");
-
-            var endpoint = $"{ApiEndpoints.Blocks}/{input.PageId}/children";
-            var request = new NotionRequest(endpoint, Method.Patch, Creds)
-                .WithJsonBody(new
-                {
-                    @object = "block",
-                    type = "file",
-                    file = new
-                    {
-                        caption = new JArray(),
-                        type = "external",
-                        external = new
-                        {
-                            url = fileReference.Url
-                        },
-                        name = fileReference.Name
-                    }
-                }, JsonConfig.Settings);
-
-            await Client.ExecuteWithErrorHandling(request);
-            return "File added successfully";
-        }
-        catch (Exception e)
-        {
-            return $"Exception message: {e.Message};\nStack trace: {e.StackTrace};\n Exception type: {e.GetType()}";
-        }
-    }
-    
     [Action("Get page as HTML (Debug)", Description = "Get content of a specific page as HTML (Debug)")]
     public async Task<PageContentResponse> GetPageAsHtmlDebug(
         [ActionParameter] PageRequest page)
