@@ -325,9 +325,6 @@ public static class NotionHtmlParser
 
     private static bool BlockIsUntranslatable(string type, JToken content)
     {
-        if (type == "column_list" && !content.Children().Any())
-            return true;
-
         if (type == "image" && content["type"].ToString() != "external")
             return true;
 
