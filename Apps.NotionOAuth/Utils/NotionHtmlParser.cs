@@ -1,4 +1,5 @@
 using System.Text;
+using System.Web;
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models;
 using Blackbird.Applications.Sdk.Utils.Extensions.System;
@@ -203,11 +204,19 @@ public static class NotionHtmlParser
             foreach (var titleModel in richText)
             {
                 var linkUrl = titleModel.Text?.Link?.Url;
+                var richTextType = titleModel.Type;
 
                 var blockChildNode = htmlDoc.CreateElement("p");
 
                 if (!string.IsNullOrEmpty(linkUrl))
                     blockChildNode.SetAttributeValue("href", linkUrl);
+
+                if (richTextType == "mention" && titleModel.Mention is not null)
+                {
+                    var mentionType = titleModel.Mention["type"]?.ToString();
+                    blockChildNode.SetAttributeValue("data-mention-id", titleModel.Mention[mentionType]!["id"]?.ToString());
+                    blockChildNode.SetAttributeValue("data-mention-type", mentionType);
+                }
 
                 if (titleModel.Annotations is not null)
                 {
@@ -260,20 +269,33 @@ public static class NotionHtmlParser
 
     private static JObject ParseNode(HtmlNode node, string type)
     {
-        var richText = node.ChildNodes.Select(x => new TitleModel
+        var richText = node.ChildNodes.Select(x =>
         {
-            Type = "text",
-            Annotations = ParseAnnotations(x.Attributes),
-            Text = new()
+            var dataMentionId = x.Attributes["data-mention-id"]?.Value;
+            var mentionType = x.Attributes["data-mention-type"]?.Value;
+            var richTextType = string.IsNullOrEmpty(dataMentionId) ? "text" : "mention";
+            
+            return new TitleModel
             {
-                Content = x.InnerText,
-                Link = x.Attributes["href"]?.Value is null
-                    ? null
-                    : new()
-                    {
-                        Url = x.Attributes["href"].Value
-                    }
-            }
+                Type = richTextType,
+                Annotations = ParseAnnotations(x.Attributes),
+                Text = richTextType == "mention" ? null : new()
+                {
+                    Content = x.InnerText,
+                    Link = x.Attributes["href"]?.Value is null
+                        ? null
+                        : new()
+                        {
+                            Url = x.Attributes["href"].Value
+                        }
+                },
+                Mention = richTextType == "mention" ? new JObject
+                {
+                    { "type", mentionType },
+                    { mentionType!, new JObject { { "id", dataMentionId } } }
+                } : null,
+                PlainText = richTextType == "mention" ? x.InnerText : null!
+            };
         }).ToArray();
 
         var contextParams = new JObject();
