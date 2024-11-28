@@ -1,6 +1,8 @@
 using System.Text;
+using System.Web;
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models;
+using Apps.NotionOAuth.Models.Request.Page;
 using Blackbird.Applications.Sdk.Utils.Extensions.System;
 using Blackbird.Applications.Sdk.Utils.Html.Extensions;
 using HtmlAgilityPack;
@@ -18,11 +20,12 @@ public static class NotionHtmlParser
     private const string UntranslatableType = "untranslatable";
     private const string ChildBlockIds = "child_block_ids";
     private const string BlockIdAttr = "data-block-id";
+    private const string ParentBlockIdAttr = "data-parent-page-id";
     private const string ChildBlockIdsAttr = "data-child-block-ids";
     private const string BlackbirdPageIdAttr = "blackbird-page-id";
 
     private static readonly string[] UnparsableTypes =
-        { "child_page", "child_database", "unsupported", "file", "audio", "link_preview" };
+        { "child_database", "unsupported", "file", "audio", "link_preview" };
 
     private static readonly string[] TextTypes = { "rich_text", "text" };
 
@@ -77,6 +80,57 @@ public static class NotionHtmlParser
         }
 
         rootBlocks = rootBlocks.Where(x => !childBlockIds.Contains(x["id"]?.ToString())).ToList();
+        var childPages = rootBlocks.Where(x => x.GetStringValue("type") == "child_page").ToList();
+        var innerChildBlocksIds = new List<string>();
+
+        foreach (var childPage in childPages)
+        {
+            var title = childPage["child_page"]?["title"]?.ToString() ?? "Untitled";
+            var titleProperty = new TitlePropertyModel
+            {
+                Title =
+                [
+                    new()
+                    {
+                        Text = new TextContentModel
+                        {
+                            Content = title
+                        }
+                    }
+                ]
+            };
+                
+            var titlePropertyJson = JObject.Parse(JsonConvert.SerializeObject(titleProperty));
+            childPage["properties"] = titlePropertyJson;
+            
+            var children = rootBlocks.Where(y => y.GetParentPageId() == childPage.GetStringValue("id")).ToList();
+            children.ForEach(y => y.Remove("id"));
+            childPage["children"] = JArray.FromObject(children);
+            
+            innerChildBlocksIds.AddRange(children.Select(y => y.GetStringValue("id"))!);
+
+            if (childPage.TryGetValue("child_page", out _))
+            {
+                childPage.Remove("child_page");
+            }
+            
+            if (childPage.TryGetValue("has_children", out _))
+            {
+                childPage.Remove("has_children");
+            }
+            
+            if (childPage.TryGetValue("object", out _))
+            {
+                childPage.Remove("object");
+            }
+            
+            if (childPage.TryGetValue("object", out _))
+            {
+                childPage.Remove("object");
+            }
+        }
+        
+        rootBlocks = rootBlocks.Where(x => !innerChildBlocksIds.Contains(x.GetStringValue("id")!)).ToList();
         rootBlocks.ForEach(x => x.Remove("id"));
         return rootBlocks.ToArray();
     }
@@ -164,6 +218,7 @@ public static class NotionHtmlParser
 
             var content = block[type]!;
             var id = block["id"]?.ToString();
+            var parentPageId = block.GetParentPageId();
 
             if (BlockIsUntranslatable(type, content))
                 continue;
@@ -195,6 +250,7 @@ public static class NotionHtmlParser
             blockNode.SetAttributeValue(TypeAttr, type);
             blockNode.SetAttributeValue(ContentParamsAttr, new JObject(contentParams).ToString());
             blockNode.SetAttributeValue(BlockIdAttr, id);
+            blockNode.SetAttributeValue(ParentBlockIdAttr, parentPageId);
 
             if (block[ChildBlockIds] is not null)
                 blockNode.SetAttributeValue(ChildBlockIdsAttr,
@@ -203,11 +259,19 @@ public static class NotionHtmlParser
             foreach (var titleModel in richText)
             {
                 var linkUrl = titleModel.Text?.Link?.Url;
+                var richTextType = titleModel.Type;
 
                 var blockChildNode = htmlDoc.CreateElement("p");
 
                 if (!string.IsNullOrEmpty(linkUrl))
                     blockChildNode.SetAttributeValue("href", linkUrl);
+
+                if (richTextType == "mention" && titleModel.Mention is not null)
+                {
+                    var mentionType = titleModel.Mention["type"]?.ToString();
+                    blockChildNode.SetAttributeValue("data-mention-id", titleModel.Mention[mentionType]!["id"]?.ToString());
+                    blockChildNode.SetAttributeValue("data-mention-type", mentionType);
+                }
 
                 if (titleModel.Annotations is not null)
                 {
@@ -260,20 +324,33 @@ public static class NotionHtmlParser
 
     private static JObject ParseNode(HtmlNode node, string type)
     {
-        var richText = node.ChildNodes.Select(x => new TitleModel
+        var richText = node.ChildNodes.Select(x =>
         {
-            Type = "text",
-            Annotations = ParseAnnotations(x.Attributes),
-            Text = new()
+            var dataMentionId = x.Attributes["data-mention-id"]?.Value;
+            var mentionType = x.Attributes["data-mention-type"]?.Value;
+            var richTextType = string.IsNullOrEmpty(dataMentionId) ? "text" : "mention";
+            
+            return new TitleModel
             {
-                Content = x.InnerText,
-                Link = x.Attributes["href"]?.Value is null
-                    ? null
-                    : new()
-                    {
-                        Url = x.Attributes["href"].Value
-                    }
-            }
+                Type = richTextType,
+                Annotations = ParseAnnotations(x.Attributes),
+                Text = richTextType == "mention" ? null : new()
+                {
+                    Content = x.InnerText,
+                    Link = x.Attributes["href"]?.Value is null
+                        ? null
+                        : new()
+                        {
+                            Url = x.Attributes["href"].Value
+                        }
+                },
+                Mention = richTextType == "mention" ? new JObject
+                {
+                    { "type", mentionType },
+                    { mentionType!, new JObject { { "id", dataMentionId } } }
+                } : null,
+                PlainText = richTextType == "mention" ? x.InnerText : null!
+            };
         }).ToArray();
 
         var contextParams = new JObject();
@@ -291,7 +368,7 @@ public static class NotionHtmlParser
             childBlockIds = node.Attributes[ChildBlockIdsAttr]!.Value.Replace("&quot;", "\"");
         }
 
-        return new()
+        var jObject = new JObject()
         {
             { "object", "block" },
             { "type", type },
@@ -299,6 +376,18 @@ public static class NotionHtmlParser
             { ChildBlockIds, childBlockIds },
             { "id", node.Attributes[BlockIdAttr]?.Value }
         };
+        
+        var parentPageId = node.Attributes[ParentBlockIdAttr]?.Value;
+        if (parentPageId is not null)
+        {
+            jObject["parent"] = new JObject
+            {
+                { "type", "page_id" },
+                { "page_id", parentPageId }
+            };
+        }
+        
+        return jObject;
     }
 
     private static AnnotationsModel? ParseAnnotations(HtmlAttributeCollection attr)
@@ -325,9 +414,6 @@ public static class NotionHtmlParser
 
     private static bool BlockIsUntranslatable(string type, JToken content)
     {
-        if (type == "column_list" && !content.Children().Any())
-            return true;
-
         if (type == "image" && content["type"].ToString() != "external")
             return true;
 

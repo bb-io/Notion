@@ -1,5 +1,6 @@
 using Apps.NotionOAuth.Api;
 using Apps.NotionOAuth.Constants;
+using Apps.NotionOAuth.Extensions;
 using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.Models.Request.Block;
@@ -52,18 +53,68 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
     internal async Task AppendBlockChildren(string blockId, JObject[] blocks)
     {
-        var blockChunks = blocks.Chunk(MaxBlocksUploadSize).ToArray();
+        var blockChunks = new List<List<JObject>>();
+        var currentChunk = new List<JObject>();
+
+        foreach (var block in blocks)
+        {
+            if (block["type"]?.ToString() == "child_page")
+            {
+                if (currentChunk.Any())
+                {
+                    blockChunks.Add(currentChunk);
+                    currentChunk = new List<JObject>();
+                }
+
+                blockChunks.Add(new List<JObject> { block });
+            }
+            else
+            {
+                currentChunk.Add(block);
+
+                if (currentChunk.Count >= MaxBlocksUploadSize)
+                {
+                    blockChunks.Add(currentChunk);
+                    currentChunk = new List<JObject>();
+                }
+            }
+        }
+        
+        if (currentChunk.Any())
+        {
+            blockChunks.Add(currentChunk);
+        }
         
         foreach (var blockChunk in blockChunks)
         {
-            var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
-            var request = new NotionRequest(endpoint, Method.Patch, Creds)
-                .WithJsonBody(new ChildrenRequest()
-                {
-                    Children = blockChunk
-                }, JsonConfig.Settings);
+            var hasChildPage = blockChunk.Any(x => x["type"]?.ToString() == "child_page");
 
-            await Client.ExecuteWithErrorHandling(request);
+            if (hasChildPage)
+            {
+                foreach (var page in blockChunk)
+                {
+                    if (page.TryGetValue("type", out _))
+                    {
+                        page.Remove("type");
+                    }
+                    
+                    var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
+                        .WithJsonBody(page, JsonConfig.Settings);
+
+                    await Client.ExecuteWithErrorHandling(request);
+                }
+            }
+            else
+            {
+                var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
+                var request = new NotionRequest(endpoint, Method.Patch, Creds)
+                    .WithJsonBody(new ChildrenRequest
+                    {
+                        Children = blockChunk.ToArray()
+                    }, JsonConfig.Settings);
+
+                await Client.ExecuteWithErrorHandling(request);
+            }
         }
     }
 }
