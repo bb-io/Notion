@@ -2,6 +2,7 @@ using System.Text;
 using System.Web;
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models;
+using Apps.NotionOAuth.Models.Request.Page;
 using Blackbird.Applications.Sdk.Utils.Extensions.System;
 using Blackbird.Applications.Sdk.Utils.Html.Extensions;
 using HtmlAgilityPack;
@@ -19,11 +20,12 @@ public static class NotionHtmlParser
     private const string UntranslatableType = "untranslatable";
     private const string ChildBlockIds = "child_block_ids";
     private const string BlockIdAttr = "data-block-id";
+    private const string ParentBlockIdAttr = "data-parent-page-id";
     private const string ChildBlockIdsAttr = "data-child-block-ids";
     private const string BlackbirdPageIdAttr = "blackbird-page-id";
 
     private static readonly string[] UnparsableTypes =
-        { "child_page", "child_database", "unsupported", "file", "audio", "link_preview" };
+        { "child_database", "unsupported", "file", "audio", "link_preview" };
 
     private static readonly string[] TextTypes = { "rich_text", "text" };
 
@@ -78,6 +80,39 @@ public static class NotionHtmlParser
         }
 
         rootBlocks = rootBlocks.Where(x => !childBlockIds.Contains(x["id"]?.ToString())).ToList();
+        var childPages = rootBlocks.Where(x => x.GetStringValue("type") == "child_page").ToList();
+        var innerChildBlocksIds = new List<string>();
+
+        foreach (var x in childPages)
+        {
+            var title = x["child_page"]?["title"]?.ToString() ?? "Untitled";
+            var titleProperty = new TitlePropertyModel
+            {
+                Title =
+                [
+                    new()
+                    {
+                        Text = new TextContentModel
+                        {
+                            Content = title
+                        }
+                    }
+                ]
+            };
+                
+            var titlePropertyJson = JObject.Parse(JsonConvert.SerializeObject(titleProperty));
+            x["properties"] = titlePropertyJson;
+            
+            var children = rootBlocks.Where(y => y.GetParentPageId() == x.GetStringValue("id")).ToList();
+            children.ForEach(y => y.Remove("id"));
+            x["children"] = JArray.FromObject(children);
+            
+            innerChildBlocksIds.AddRange(children.Select(y => y.GetStringValue("id")));
+            
+            x.Remove("child_page");
+        }
+        
+        rootBlocks = rootBlocks.Where(x => !innerChildBlocksIds.Contains(x.GetStringValue("id")!)).ToList();
         rootBlocks.ForEach(x => x.Remove("id"));
         return rootBlocks.ToArray();
     }
@@ -165,6 +200,7 @@ public static class NotionHtmlParser
 
             var content = block[type]!;
             var id = block["id"]?.ToString();
+            var parentPageId = block.GetParentPageId();
 
             if (BlockIsUntranslatable(type, content))
                 continue;
@@ -196,6 +232,7 @@ public static class NotionHtmlParser
             blockNode.SetAttributeValue(TypeAttr, type);
             blockNode.SetAttributeValue(ContentParamsAttr, new JObject(contentParams).ToString());
             blockNode.SetAttributeValue(BlockIdAttr, id);
+            blockNode.SetAttributeValue(ParentBlockIdAttr, parentPageId);
 
             if (block[ChildBlockIds] is not null)
                 blockNode.SetAttributeValue(ChildBlockIdsAttr,
@@ -313,7 +350,7 @@ public static class NotionHtmlParser
             childBlockIds = node.Attributes[ChildBlockIdsAttr]!.Value.Replace("&quot;", "\"");
         }
 
-        return new()
+        var jObject = new JObject()
         {
             { "object", "block" },
             { "type", type },
@@ -321,6 +358,18 @@ public static class NotionHtmlParser
             { ChildBlockIds, childBlockIds },
             { "id", node.Attributes[BlockIdAttr]?.Value }
         };
+        
+        var parentPageId = node.Attributes[ParentBlockIdAttr]?.Value;
+        if (parentPageId is not null)
+        {
+            jObject["parent"] = new JObject
+            {
+                { "type", "page_id" },
+                { "page_id", parentPageId }
+            };
+        }
+        
+        return jObject;
     }
 
     private static AnnotationsModel? ParseAnnotations(HtmlAttributeCollection attr)

@@ -78,9 +78,10 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
     [Action("Get page as HTML", Description = "Get content of a specific page as HTML")]
     public async Task<FileResponse> GetPageAsHtml(
-        [ActionParameter] PageRequest page)
+        [ActionParameter] PageRequest page,
+        [ActionParameter] GetPageAsHtmlRequest pageAsHtmlRequest)
     {
-        var response = await GetAllBlockChildrenRecursively(page.PageId);
+        var response = await GetAllBlockChildrenRecursively(page.PageId, pageAsHtmlRequest);
         var html = NotionHtmlParser.ParseBlocks(page.PageId, response.ToArray());
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(html));
@@ -118,7 +119,11 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             BlockId = pageId
         });
         
-        var excludeChildTypes = new[] { "file", "audio" };
+        var blocks = NotionHtmlParser.ParseHtml(html);
+        var json = JsonConvert.SerializeObject(blocks, Formatting.Indented, JsonConfig.Settings);
+        await actions.AppendBlockChildren(pageId, blocks);
+        
+        var excludeChildTypes = new[] { "file", "audio", "child_page" };
         
         // Can't remove all blocks in parallel, because it can cause rate limiting errors
         foreach (var child in children.Children)
@@ -138,9 +143,6 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
                 // ignored
             }
         }
-        
-        var blocks = NotionHtmlParser.ParseHtml(html);
-        await actions.AppendBlockChildren(pageId, blocks);
     }
 
     [Action("Get page", Description = "Get details of a specific page")]
@@ -433,7 +435,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
     #region Utils
 
-    private async Task<List<JObject>> GetAllBlockChildrenRecursively(string blockId)
+    private async Task<List<JObject>> GetAllBlockChildrenRecursively(string blockId, GetPageAsHtmlRequest? pageAsHtmlRequest)
     {
         if (string.IsNullOrEmpty(blockId))
         {
@@ -444,13 +446,19 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var request = new NotionRequest(endpoint, Method.Get, Creds);
         var allBlocks = await Client.Paginate<JObject>(request);
         var childBlocksToAdd = new List<JObject>();
+        var includeChildPages = pageAsHtmlRequest?.IncludeChildPages ?? false;
         
         foreach (var block in allBlocks)
         {
             var hasChildren = block["has_children"]?.ToObject<bool>() ?? false;
+            if (block["type"]?.ToString() == "child_page" && includeChildPages == false)
+            {
+                continue;
+            }
+            
             if (hasChildren)
             {
-                var childBlocks = await GetAllBlockChildrenRecursively(block["id"]!.ToString());
+                var childBlocks = await GetAllBlockChildrenRecursively(block["id"]!.ToString(), pageAsHtmlRequest);
                 childBlocksToAdd.AddRange(childBlocks);
                 
                 var blockIdValue = block["id"]?.ToString();
