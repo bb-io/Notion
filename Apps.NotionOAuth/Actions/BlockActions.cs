@@ -80,12 +80,29 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             }
         }
         
+        if (currentChunk.Any())
+        {
+            blockChunks.Add(currentChunk);
+        }
+        
         foreach (var blockChunk in blockChunks)
         {
             var hasChildPage = blockChunk.Any(x => x["type"]?.ToString() == "child_page");
 
             if (hasChildPage)
             {
+                foreach (var page in blockChunk)
+                {
+                    if (page.TryGetValue("type", out _))
+                    {
+                        page.Remove("type");
+                    }
+                    
+                    var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
+                        .WithJsonBody(page, JsonConfig.Settings);
+
+                    await Client.ExecuteWithErrorHandling(request);
+                }
             }
             else
             {

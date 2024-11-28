@@ -83,9 +83,9 @@ public static class NotionHtmlParser
         var childPages = rootBlocks.Where(x => x.GetStringValue("type") == "child_page").ToList();
         var innerChildBlocksIds = new List<string>();
 
-        foreach (var x in childPages)
+        foreach (var childPage in childPages)
         {
-            var title = x["child_page"]?["title"]?.ToString() ?? "Untitled";
+            var title = childPage["child_page"]?["title"]?.ToString() ?? "Untitled";
             var titleProperty = new TitlePropertyModel
             {
                 Title =
@@ -101,15 +101,33 @@ public static class NotionHtmlParser
             };
                 
             var titlePropertyJson = JObject.Parse(JsonConvert.SerializeObject(titleProperty));
-            x["properties"] = titlePropertyJson;
+            childPage["properties"] = titlePropertyJson;
             
-            var children = rootBlocks.Where(y => y.GetParentPageId() == x.GetStringValue("id")).ToList();
+            var children = rootBlocks.Where(y => y.GetParentPageId() == childPage.GetStringValue("id")).ToList();
             children.ForEach(y => y.Remove("id"));
-            x["children"] = JArray.FromObject(children);
+            childPage["children"] = JArray.FromObject(children);
             
-            innerChildBlocksIds.AddRange(children.Select(y => y.GetStringValue("id")));
+            innerChildBlocksIds.AddRange(children.Select(y => y.GetStringValue("id"))!);
+
+            if (childPage.TryGetValue("child_page", out _))
+            {
+                childPage.Remove("child_page");
+            }
             
-            x.Remove("child_page");
+            if (childPage.TryGetValue("has_children", out _))
+            {
+                childPage.Remove("has_children");
+            }
+            
+            if (childPage.TryGetValue("object", out _))
+            {
+                childPage.Remove("object");
+            }
+            
+            if (childPage.TryGetValue("object", out _))
+            {
+                childPage.Remove("object");
+            }
         }
         
         rootBlocks = rootBlocks.Where(x => !innerChildBlocksIds.Contains(x.GetStringValue("id")!)).ToList();
