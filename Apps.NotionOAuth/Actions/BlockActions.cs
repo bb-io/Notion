@@ -98,6 +98,11 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
                         page.Remove("type");
                     }
                     
+                    if (page.TryGetValue("child_page", out _))
+                    {
+                        page.Remove("child_page");
+                    }
+                    
                     var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
                         .WithJsonBody(page, JsonConfig.Settings);
 
