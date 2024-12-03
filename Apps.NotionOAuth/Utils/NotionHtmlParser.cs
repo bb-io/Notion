@@ -27,6 +27,8 @@ public static class NotionHtmlParser
     private static readonly string[] UnparsableTypes =
         { "child_database", "unsupported", "file", "audio", "link_preview" };
 
+    private static readonly string[] TranslatableTypes = { "table_row", "child_page" };
+
     private static readonly string[] TextTypes = { "rich_text", "text" };
 
     public static JObject[] ParseHtml(string html)
@@ -252,10 +254,10 @@ public static class NotionHtmlParser
 
             if (textElements is null)
             {
-                var typeAttr = type == "table_row" ? "table_row" : UntranslatableType;
+                var typeAttr = TranslatableTypes.Contains(type) ? type : UntranslatableType;
                 blockNode.SetAttributeValue(TypeAttr, typeAttr);
                 blockNode.SetAttributeValue(UntranslatableContentAttr, block.ToString());
-                var blockContent = GetBlockContent(block);
+                var blockContent = GetNonTextBlockContent(block);
                 if (!string.IsNullOrEmpty(blockContent))
                 {
                     blockNode.InnerHtml = blockContent;
@@ -319,7 +321,7 @@ public static class NotionHtmlParser
         return htmlDoc.DocumentNode.OuterHtml;
     }
 
-    private static string? GetBlockContent(JObject jObject)
+    private static string? GetNonTextBlockContent(JObject jObject)
     {
         var type = jObject["type"]!.ToString();
 
@@ -335,6 +337,11 @@ public static class NotionHtmlParser
             }
             
             return html.ToString();
+        }
+        if (type == "child_page")
+        {
+            var title = jObject["child_page"]!["title"]?.ToString();
+            return string.IsNullOrEmpty(title) ? null : $"<p>{title}</p>";
         }
         
         return null;
@@ -482,6 +489,7 @@ public static class NotionHtmlParser
         {
             UntranslatableType => JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue),
             "table_row" => ParseRowTableNode(node),
+            "child_page" => ParseChildPage(node),
             _ => ParseNode(node, type)
         };
     }
@@ -504,5 +512,13 @@ public static class NotionHtmlParser
         
         tableRow["table_row"]!["cells"] = JArray.FromObject(tableCells);
         return tableRow;
+    }
+    
+    private static JObject ParseChildPage(HtmlNode node)
+    {
+        var childPage = JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue);
+        var title = node.ChildNodes.FirstOrDefault(x => x.Name == "p")?.InnerText ?? "Untitled";
+        childPage["child_page"]!["title"] = title;
+        return childPage;
     }
 }
