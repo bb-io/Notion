@@ -256,8 +256,13 @@ public static class NotionHtmlParser
             {
                 blockNode.SetAttributeValue(TypeAttr, UntranslatableType);
                 blockNode.SetAttributeValue(UntranslatableContentAttr, block.ToString());
+                var blockContent = GetBlockContent(block);
+                if (!string.IsNullOrEmpty(blockContent))
+                {
+                    blockNode.InnerHtml = blockContent;
+                }
+                
                 bodyNode.AppendChild(blockNode);
-
                 continue;
             }
 
@@ -313,6 +318,27 @@ public static class NotionHtmlParser
         }
 
         return htmlDoc.DocumentNode.OuterHtml;
+    }
+
+    private static string? GetBlockContent(JObject jObject)
+    {
+        var type = jObject["type"]!.ToString();
+
+        if (type == "table_row")
+        {
+            var cells = jObject["table_row"]!["cells"]!.ToObject<List<List<JObject>>>()?.ToArray();
+            var columns = cells.Select(x => x.FirstOrDefault()?["plain_text"]?.ToString()).ToArray();
+            
+            var html = new StringBuilder();
+            for (int i = 0; i < columns.Length; i++)
+            {
+                html.Append($"<p data-column-number={i}>{columns[i]}</p>");
+            }
+            
+            return html.ToString();
+        }
+        
+        return null;
     }
 
     public static JObject ParseText(string text)
