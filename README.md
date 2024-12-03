@@ -55,6 +55,8 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 - **Set page property as empty**
 - **Create/Get/Archive page**
 
+> For the 'Create page' and 'Create page from HTML' actions, you must specify the parent page or database where the new page will be created. If not specified, the action will fail with an error.
+
 ### Users
 
 - **List users** returns a list of users belonging to the workspace.
@@ -69,8 +71,17 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 
 ## HTML Conversion
 
-Blackbird is able to convert `Page` content to an HTML file and back, so that it is possible to translate Notion content automatically via Blackbird.  For example, you can do a combination like "Notion: Get page as HTML" -> "DeepL: Translate" -> "Notion: Update page from HTML". Untranslatable content will be transferred back as well, except of several types like: Reference, File, Child page and Audio. These types won't be transferred for now (after updating the page, these elements will be moved to the top of the page, but they will not be deleted), but we are constantly working to make it better.
-  
+Blackbird can convert `Page` content to an HTML file and back, enabling automatic translation of Notion content via Blackbird. For example, you can set up a workflow like this: "Notion: Get page as HTML" → "DeepL: Translate" → "Notion: Update page from HTML."
+
+Untranslatable content will also be transferred, with a few exceptions. These include:
+
+- **Reference**
+- **Notion-hosted files** (such as PDFs, audio, video, or images; however, external URLs will work fine)
+
+For now, these types won't be transferred. We are continuously working to improve this process.
+
+> Translating child pages is also fully supported. You can translate child pages by setting the 'Include child pages' optional input to true for the 'Get page as HTML' action. If this input is not set or is set to false, we will not extract and translate child pages, and the new (or updated) page will not include these child pages.
+
 ## Feedback  
   
 Do you want to use this app or do you have feedback on our implementation? Reach out to us using the [established channels](https://www.blackbird.io/) or create an issue.
