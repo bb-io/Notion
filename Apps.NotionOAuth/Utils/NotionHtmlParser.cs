@@ -39,130 +39,127 @@ public static class NotionHtmlParser
 
         var jObjects = translatableNodes.Select(MapNodeToBlockChild).ToList();
 
-        // Build blocksById
+        var extractedPageId = ExtractPageId(html);
+        if (string.IsNullOrEmpty(extractedPageId))
+            throw new Exception("Page ID not found in HTML");
+        extractedPageId = NormalizeId(extractedPageId);
+
         var blocksById = jObjects.Where(x => x["id"] != null)
-            .ToDictionary(x => x["id"]!.ToString());
-
-        // Build parentIdToChildren mapping
-        var parentIdToChildren = new Dictionary<string, List<JObject>>();
+            .ToDictionary(x => NormalizeId(x["id"]!.ToString()));
 
         foreach (var block in jObjects)
         {
-            var parentId = block.GetParentPageId();
-            if (parentId != null)
-            {
-                if (!parentIdToChildren.ContainsKey(parentId))
-                {
-                    parentIdToChildren[parentId] = new List<JObject>();
-                }
-
-                parentIdToChildren[parentId].Add(block);
-            }
-        }
-
-        // Now, recursively build the hierarchy starting from root blocks
-        var rootPageId = ExtractPageId(html);
-        var rootBlocks = new List<JObject>();
-        
-        var json = JsonConvert.SerializeObject(new
-        {
-            jObjects,
-            parentIdToChildren,
-            rootPageId
-        }, Formatting.Indented, JsonConfig.Settings);
-
-        // Find blocks that have parentId matching rootPageId, or no parentId
-        foreach (var block in jObjects)
-        {
-            var parentId = block.GetParentPageId();
-            if (parentId == null || parentId == rootPageId)
-            {
-                BuildBlockHierarchy(block, parentIdToChildren);
-                rootBlocks.Add(block);
-            }
-        }
-
-        // Optionally, remove unnecessary properties
-        rootBlocks.ForEach(block => { RemoveUnnecessaryProperties(block); });
-        return rootBlocks.ToArray();
-    }
-
-    private static void BuildBlockHierarchy(JObject block, Dictionary<string, List<JObject>> parentIdToChildren)
-    {
-        var id = block["id"]?.ToString();
-        if (id != null && parentIdToChildren.ContainsKey(id))
-        {
-            var children = parentIdToChildren[id];
-
             var type = block["type"]?.ToString();
             if (type == "child_page")
             {
-                // For child_page, add 'children' under the block itself
-                block["children"] = JArray.FromObject(children);
-
-                // Adjust 'properties' for child_page
-                var title = block["child_page"]?["title"]?.ToString() ?? "Untitled";
-                var titleProperty = new TitlePropertyModel
-                {
-                    Title = new List<TitleProperty>
-                    {
-                        new()
-                        {
-                            Text = new TextContentModel
-                            {
-                                Content = title
-                            }
-                        }
-                    }
-                };
-                var titlePropertyJson = JObject.Parse(JsonConvert.SerializeObject(titleProperty));
-                block["properties"] = titlePropertyJson;
-
-                if (block.TryGetValue("child_page", out _))
-                {
-                    block.Remove("child_page");
-                }
-
-                // Recursively build hierarchy for each child
-                foreach (var child in children)
-                {
-                    BuildBlockHierarchy(child, parentIdToChildren);
-                }
+                SetChildPageProperties(block);
             }
-            else
-            {
-                // For other blocks, add 'children' under block[type]['children']
-                if (block[type] is JObject content)
-                {
-                    // Recursively build hierarchy for each child
-                    foreach (var child in children)
-                    {
-                        BuildBlockHierarchy(child, parentIdToChildren);
-                    }
+        }
 
-                    content["children"] = JArray.FromObject(children);
+        for (int i = jObjects.Count - 1; i >= 0; i--)
+        {
+            var block = jObjects[i];
+            var parentId = block.GetParentId();
+            if (parentId != null)
+            {
+                parentId = NormalizeId(parentId);
+                if (extractedPageId != parentId)
+                {
+                    // The block is not a root block, find its parent
+                    if (blocksById.TryGetValue(parentId, out var parentBlock))
+                    {
+                        AddBlockToParent(block, parentBlock);
+                        jObjects.RemoveAt(i);
+                    }
+                    else
+                    {
+                        throw new Exception($"Parent block with ID {parentId} not found");
+                    }
                 }
             }
         }
+
+        // Remove unnecessary properties, otherwise the API will return an error
+        jObjects.ForEach(RemoveUnnecessaryProperties);
+        return jObjects.ToArray();
+    }
+    
+    private static void SetChildPageProperties(JObject block)
+    {
+        var title = block["child_page"]?["title"]?.ToString() ?? "Untitled";
+        var titleProperty = new TitlePropertyModel
+        {
+            Title =
+            [
+                new()
+                {
+                    Text = new TextContentModel
+                    {
+                        Content = title
+                    }
+                }
+            ]
+        };
+
+        var titlePropertyJson = JObject.Parse(JsonConvert.SerializeObject(titleProperty));
+        block["properties"] = titlePropertyJson;
     }
 
-    private static string? GetParentPageId(this JObject block)
+    private static void AddBlockToParent(JObject block, JObject parentBlock)
     {
-        var parent = block["parent"];
-        if (parent != null && parent["type"]?.ToString() == "page_id")
+        var parentType = parentBlock["type"]?.ToString();
+        JObject parentContainer;
+
+        if (parentType == "child_page")
         {
-            return parent["page_id"]?.ToString();
-        }
-        else if (parent != null && parent["type"]?.ToString() == "block_id")
-        {
-            return parent["block_id"]?.ToString();
+            // For 'child_page', add 'children' directly under the parent block
+            parentContainer = parentBlock;
         }
         else
         {
-            return null;
+            // For other types, 'children' are under parentBlock[parentType]
+            parentContainer = parentBlock[parentType] as JObject;
+        }
+
+        if (parentContainer == null)
+        {
+            throw new Exception($"Parent container not found for block type {parentType}");
+        }
+
+        if (parentContainer["children"] == null)
+        {
+            parentContainer["children"] = new JArray { block };
+        }
+        else
+        {
+            var childrenArray = (JArray)parentContainer["children"];
+            childrenArray.Insert(0, block);
         }
     }
 
+    public static string? GetParentId(this JObject block)
+    {
+        var parent = block["parent"];
+        if (parent != null)
+        {
+            if (parent["type"]?.ToString() == "page_id")
+            {
+                return parent["page_id"]?.ToString();
+            }
+            else if (parent["type"]?.ToString() == "block_id")
+            {
+                return parent["block_id"]?.ToString();
+            }
+        }
+
+        return null;
+    }
+
+    private static string NormalizeId(string id)
+    {
+        return id.Replace("-", "").ToLower();
+    }
+    
     private static void RemoveUnnecessaryProperties(JObject block)
     {
         block.Remove("id");
@@ -174,7 +171,7 @@ public static class NotionHtmlParser
         block.Remove("archived");
         block.Remove("in_trash");
         block.Remove("has_children");
-        block.Remove("parent");
+        block.Remove("child_block_ids");
 
         if (block["type"]?.ToString() == "child_page")
         {
@@ -189,6 +186,8 @@ public static class NotionHtmlParser
         }
         else
         {
+            block.Remove("parent");
+            
             var type = block["type"]?.ToString();
             var content = block[type];
             if (content != null && content["children"] != null)
@@ -204,7 +203,6 @@ public static class NotionHtmlParser
             }
         }
     }
-
 
     public static string? ExtractPageId(string html)
     {
@@ -239,7 +237,7 @@ public static class NotionHtmlParser
 
             var content = block[type]!;
             var id = block["id"]?.ToString();
-            var parentPageId = block.GetParentPageId();
+            var parentPageId = block.GetParentId();
 
             if (BlockIsUntranslatable(type, content))
                 continue;

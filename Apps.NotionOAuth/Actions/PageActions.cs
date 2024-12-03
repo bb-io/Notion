@@ -121,10 +121,6 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         
         var excludeChildTypes = new[] { "file", "audio" };
         
-        var blocks = NotionHtmlParser.ParseHtml(html);
-        var json = JsonConvert.SerializeObject(blocks, Formatting.Indented, JsonConfig.Settings);
-        await actions.AppendBlockChildren(pageId, blocks);
-        
         // Can't remove all blocks in parallel, because it can cause rate limiting errors
         foreach (var child in children.Children)
         {
@@ -143,6 +139,9 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
                 // ignored
             }
         }
+        
+        var blocks = NotionHtmlParser.ParseHtml(html);
+        await actions.AppendBlockChildren(pageId, blocks);
     }
 
     [Action("Get page", Description = "Get details of a specific page")]
