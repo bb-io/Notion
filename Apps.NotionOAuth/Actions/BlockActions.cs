@@ -5,6 +5,7 @@ using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.Models.Request.Block;
 using Apps.NotionOAuth.Models.Response.Block;
+using Apps.NotionOAuth.Models.Response.Page;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
@@ -98,10 +99,29 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
                         page.Remove("type");
                     }
                     
+                    if (page.TryGetValue("child_page", out _))
+                    {
+                        page.Remove("child_page");
+                    }
+                    
+                    var children = page["children"]?.ToObject<JObject[]>()
+                        ?? throw new InvalidOperationException("Child pages must have children");
+                    page.Remove("children");
+                    
+                    var parent = page["parent"]?.ToObject<JObject>()
+                        ?? throw new InvalidOperationException("Child pages must have a parent");
+                    
+                    if(parent.TryGetValue("page_id", out _))
+                    {
+                        parent["page_id"] = blockId;
+                        page["parent"] = parent;
+                    }
+                    
                     var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
                         .WithJsonBody(page, JsonConfig.Settings);
 
-                    await Client.ExecuteWithErrorHandling(request);
+                    var pageResponse = await Client.ExecuteWithErrorHandling<PageResponse>(request);
+                    await AppendBlockChildren(pageResponse.Id, children.ToArray());
                 }
             }
             else

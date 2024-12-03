@@ -4,7 +4,7 @@ namespace Apps.NotionOAuth.Utils;
 
 public static class JObjectExtensions
 {
-    public static string? GetParentPageId(this JObject jObject)
+    public static string? GetParentPageIdFromObject(this JObject jObject)
     {
         var parent = jObject["parent"];
         

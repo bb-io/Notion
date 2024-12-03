@@ -447,6 +447,11 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var childBlocksToAdd = new List<JObject>();
         var includeChildPages = pageAsHtmlRequest?.IncludeChildPages ?? false;
         
+        if(includeChildPages == false)
+        {
+            allBlocks = allBlocks.Where(x => x["type"]?.ToString() != "child_page").ToList();
+        }
+        
         foreach (var block in allBlocks)
         {
             var hasChildren = block["has_children"]?.ToObject<bool>() ?? false;
