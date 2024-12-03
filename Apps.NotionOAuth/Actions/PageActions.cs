@@ -119,6 +119,9 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             BlockId = pageId
         });
         
+        var blocks = NotionHtmlParser.ParseHtml(html);
+        await actions.AppendBlockChildren(pageId, blocks);
+        
         var excludeChildTypes = new[] { "file", "audio" };
         
         // Can't remove all blocks in parallel, because it can cause rate limiting errors
@@ -139,9 +142,6 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
                 // ignored
             }
         }
-        
-        var blocks = NotionHtmlParser.ParseHtml(html);
-        await actions.AppendBlockChildren(pageId, blocks);
     }
 
     [Action("Get page", Description = "Get details of a specific page")]

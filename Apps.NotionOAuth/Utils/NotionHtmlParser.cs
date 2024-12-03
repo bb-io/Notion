@@ -252,7 +252,8 @@ public static class NotionHtmlParser
 
             if (textElements is null)
             {
-                blockNode.SetAttributeValue(TypeAttr, UntranslatableType);
+                var typeAttr = type == "table_row" ? "table_row" : UntranslatableType;
+                blockNode.SetAttributeValue(TypeAttr, typeAttr);
                 blockNode.SetAttributeValue(UntranslatableContentAttr, block.ToString());
                 var blockContent = GetBlockContent(block);
                 if (!string.IsNullOrEmpty(blockContent))
@@ -480,7 +481,28 @@ public static class NotionHtmlParser
         return type switch
         {
             UntranslatableType => JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue),
+            "table_row" => ParseRowTableNode(node),
             _ => ParseNode(node, type)
         };
+    }
+    
+    private static JObject ParseRowTableNode(HtmlNode node)
+    {
+        var cells = node.ChildNodes
+            .Where(x => x.Name == "p")
+            .Select(x => x.InnerText)
+            .ToArray();
+
+        var tableRow = JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue);
+        var tableCells = tableRow["table_row"]!["cells"]!.ToObject<List<List<JObject>>>()!;
+        
+        for (int i = 0; i < cells.Length; i++)
+        {
+            tableCells[i][0]["text"]!["content"] = cells[i];
+            tableCells[i][0]["plain_text"] = cells[i];
+        }
+        
+        tableRow["table_row"]!["cells"] = JArray.FromObject(tableCells);
+        return tableRow;
     }
 }
