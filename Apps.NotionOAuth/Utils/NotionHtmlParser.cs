@@ -27,7 +27,7 @@ public static class NotionHtmlParser
     private static readonly string[] UnparsableTypes =
         { "child_database", "unsupported", "file", "audio", "link_preview" };
 
-    private static readonly string[] TranslatableTypes = { "table_row", "child_page" };
+    private static readonly string[] NonTextTranslatableTypes = { "table_row", "child_page", "database" };
 
     private static readonly string[] TextTypes = { "rich_text", "text" };
 
@@ -165,7 +165,15 @@ public static class NotionHtmlParser
     private static void RemoveUnnecessaryProperties(JObject block)
     {
         block.Remove("id");
-        block.Remove("object");
+        
+        if(block.TryGetValue("object", out var objectType))
+        {
+            if(objectType.ToString() != "database")
+            {
+                block.Remove("object");
+            }
+        }
+        
         block.Remove("created_time");
         block.Remove("last_edited_time");
         block.Remove("created_by");
@@ -175,7 +183,7 @@ public static class NotionHtmlParser
         block.Remove("has_children");
         block.Remove("child_block_ids");
 
-        if (block["type"]?.ToString() == "child_page")
+        if (block["type"]?.ToString() == "child_page" || block["object"]?.ToString() == "database")
         {
             var children = block["children"]?.Children<JObject>().ToList();
             if (children != null)
@@ -191,7 +199,7 @@ public static class NotionHtmlParser
             block.Remove("parent");
             
             var type = block["type"]?.ToString();
-            var content = block[type];
+            var content = type == null ? null : block[type];
             if (content != null && content["children"] != null)
             {
                 var children = content["children"]?.Children<JObject>().ToList();
@@ -232,21 +240,26 @@ public static class NotionHtmlParser
 
         foreach (var block in blocks)
         {
-            var type = block["type"]!.ToString();
-
-            if (UnparsableTypes.Contains(type))
+            var type = block["type"]?.ToString();
+            var objectType = block["object"]?.ToString();
+            if (type != null && UnparsableTypes.Contains(type))
                 continue;
 
-            var content = block[type]!;
+            if (string.IsNullOrEmpty(type) && string.IsNullOrEmpty(objectType))
+            {
+                throw new Exception("Block and object types are missing. Probably the block is not a valid Notion block. Please send this error to support team.");
+            }
+
+            var content = type == null ? null : block[type];
             var id = block["id"]?.ToString();
             var parentPageId = block.GetParentId();
 
-            if (BlockIsUntranslatable(type, content))
+            if (BlockIsUntranslatable(type!, content))
                 continue;
 
             RemoveEmptyUrls(block);
 
-            var contentProperties = content.Children();
+            var contentProperties = content?.Children().ToArray() ?? [];
             var textElements = contentProperties
                 .FirstOrDefault(x => TextTypes.Contains((x as JProperty)!.Name))?.Values();
 
@@ -254,7 +267,8 @@ public static class NotionHtmlParser
 
             if (textElements is null)
             {
-                var typeAttr = TranslatableTypes.Contains(type) ? type : UntranslatableType;
+                var typeOrObject = type ?? objectType!;
+                var typeAttr = NonTextTranslatableTypes.Contains(typeOrObject) ? typeOrObject : UntranslatableType;
                 blockNode.SetAttributeValue(TypeAttr, typeAttr);
                 blockNode.SetAttributeValue(UntranslatableContentAttr, block.ToString());
                 var blockContent = GetNonTextBlockContent(block);
@@ -323,7 +337,8 @@ public static class NotionHtmlParser
 
     private static string? GetNonTextBlockContent(JObject jObject)
     {
-        var type = jObject["type"]!.ToString();
+        var type = jObject["type"]?.ToString();
+        var objectType = jObject["object"]?.ToString();
 
         if (type == "table_row")
         {
@@ -338,10 +353,31 @@ public static class NotionHtmlParser
             
             return html.ToString();
         }
+        
         if (type == "child_page")
         {
             var title = jObject["child_page"]!["title"]?.ToString();
             return string.IsNullOrEmpty(title) ? null : $"<p>{title}</p>";
+        }
+
+        if (type == null && objectType == "database")
+        {
+            var title = jObject["title"]?.ToObject<List<JObject>>()?.ToArray();
+            if (title is not null)
+            {
+                var html = new StringBuilder();
+                var titleElement = title.FirstOrDefault();
+                if (titleElement is not null)
+                {
+                    var text = titleElement["text"]!["content"]?.ToString();
+                    if (text is not null)
+                    {
+                        html.Append($"<p>{text}</p>");
+                    }
+                }
+
+                return html.ToString();
+            }
         }
         
         return null;
@@ -470,13 +506,13 @@ public static class NotionHtmlParser
             .ForEach(x => x.Value = null);
     }
 
-    private static bool BlockIsUntranslatable(string type, JToken content)
+    private static bool BlockIsUntranslatable(string type, JToken? content)
     {
-        if (type == "image" && content["type"].ToString() != "external")
+        if (content != null && type == "image" && content["type"]!.ToString() != "external")
             return true;
 
-        if (type == "callout" && content["icon"]["type"].ToString() == "file")
-            (content as JObject).Remove("icon");
+        if (content != null && type == "callout" && content["icon"]?["type"]?.ToString() == "file")
+            (content as JObject)!.Remove("icon");
 
         return false;
     }
@@ -490,6 +526,7 @@ public static class NotionHtmlParser
             UntranslatableType => JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue),
             "table_row" => ParseRowTableNode(node),
             "child_page" => ParseChildPage(node),
+            "database" => ParseDatabaseNode(node),
             _ => ParseNode(node, type)
         };
     }
@@ -520,5 +557,34 @@ public static class NotionHtmlParser
         var title = node.ChildNodes.FirstOrDefault(x => x.Name == "p")?.InnerText ?? "Untitled";
         childPage["child_page"]!["title"] = title;
         return childPage;
+    }
+    
+    private static JObject ParseDatabaseNode(HtmlNode node)
+    {
+        var database = JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue);
+        var title = node.ChildNodes.FirstOrDefault(x => x.Name == "p")?.InnerText;
+        if (title is not null)
+        {
+            var titles = database["title"]!.ToObject<List<JObject>>();
+            var firstTitle = titles?.FirstOrDefault();
+            
+            if (firstTitle is not null)
+            {
+                firstTitle["text"]!["content"] = title;
+                database["title"] = JArray.FromObject(titles!);
+            }
+        }
+
+        if (database.TryGetValue("developer_survey", out _))
+        {
+            database.Remove("developer_survey");
+        }
+        
+        if (database.TryGetValue("request_id", out _))
+        {
+            database.Remove("request_id");
+        }
+
+        return database;
     }
 }

@@ -5,6 +5,7 @@ using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.Models.Request.Block;
 using Apps.NotionOAuth.Models.Response.Block;
+using Apps.NotionOAuth.Models.Response.DataBase;
 using Apps.NotionOAuth.Models.Response.Page;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
@@ -89,6 +90,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         foreach (var blockChunk in blockChunks)
         {
             var hasChildPage = blockChunk.Any(x => x["type"]?.ToString() == "child_page");
+            var hasDatabase = blockChunk.Any(x => x["object"]?.ToString() == "database");
 
             if (hasChildPage)
             {
@@ -122,6 +124,25 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
                     var pageResponse = await Client.ExecuteWithErrorHandling<PageResponse>(request);
                     await AppendBlockChildren(pageResponse.Id, children.ToArray());
+                }
+            }
+            else if (hasDatabase)
+            {
+                foreach (var database in blockChunk)
+                {
+                    var parent = database["parent"]?.ToObject<JObject>()
+                        ?? throw new InvalidOperationException("Databases must have a parent");
+                    
+                    if(parent.TryGetValue("page_id", out _)) 
+                    {
+                        parent["page_id"] = blockId;
+                        database["parent"] = parent;
+                    }
+                    
+                    var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds)
+                        .WithJsonBody(database, JsonConfig.Settings);
+                    
+                    await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
                 }
             }
             else
