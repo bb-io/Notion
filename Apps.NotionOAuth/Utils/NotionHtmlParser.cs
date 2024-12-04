@@ -1,8 +1,6 @@
 using System.Text;
-using System.Web;
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models;
-using Apps.NotionOAuth.Models.Request.Page;
 using Blackbird.Applications.Sdk.Utils.Extensions.System;
 using Blackbird.Applications.Sdk.Utils.Html.Extensions;
 using HtmlAgilityPack;
@@ -38,26 +36,40 @@ public static class NotionHtmlParser
             .ChildNodes
             .Where(x => x.Name != "#text")
             .ToArray();
-
         var jObjects = translatableNodes.Select(MapNodeToBlockChild).ToList();
 
-        var extractedPageId = ExtractPageId(html);
-        if (string.IsNullOrEmpty(extractedPageId))
-            throw new Exception("Page ID not found in HTML");
-        extractedPageId = NormalizeId(extractedPageId);
-
+        var extractedPageId = ExtractAndNormalizePageId(html);
         var blocksById = jObjects.Where(x => x["id"] != null)
             .ToDictionary(x => NormalizeId(x["id"]!.ToString()));
 
+        SetChildPagePropertiesForBlocks(jObjects);
+        OrganizeBlocks(jObjects, extractedPageId, blocksById);
+
+        jObjects.ForEach(RemoveUnnecessaryProperties);
+        return jObjects.ToArray();
+    }
+    
+    private static string ExtractAndNormalizePageId(string html)
+    {
+        var extractedPageId = ExtractPageId(html);
+        if (string.IsNullOrEmpty(extractedPageId))
+            throw new Exception("Page ID not found in HTML");
+        return NormalizeId(extractedPageId);
+    }
+    
+    private static void SetChildPagePropertiesForBlocks(List<JObject> jObjects)
+    {
         foreach (var block in jObjects)
         {
-            var type = block["type"]?.ToString();
-            if (type == "child_page")
+            if (block["type"]?.ToString() == "child_page")
             {
                 SetChildPageProperties(block);
             }
         }
+    }
 
+    private static void OrganizeBlocks(List<JObject> jObjects, string extractedPageId, Dictionary<string, JObject> blocksById)
+    {
         for (int i = jObjects.Count - 1; i >= 0; i--)
         {
             var block = jObjects[i];
@@ -67,7 +79,6 @@ public static class NotionHtmlParser
                 parentId = NormalizeId(parentId);
                 if (extractedPageId != parentId)
                 {
-                    // The block is not a root block, find its parent
                     if (blocksById.TryGetValue(parentId, out var parentBlock))
                     {
                         AddBlockToParent(block, parentBlock);
@@ -80,10 +91,6 @@ public static class NotionHtmlParser
                 }
             }
         }
-
-        // Remove unnecessary properties, otherwise the API will return an error
-        jObjects.ForEach(RemoveUnnecessaryProperties);
-        return jObjects.ToArray();
     }
     
     private static void SetChildPageProperties(JObject block)
