@@ -452,10 +452,22 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             allBlocks = allBlocks.Where(x => x["type"]?.ToString() != "child_page").ToList();
         }
         
+        var includeChildDatabases = pageAsHtmlRequest?.IncludeChildDatabases ?? false;
+        
+        if(includeChildDatabases == false)
+        {
+            allBlocks = allBlocks.Where(x => x["type"]?.ToString() != "child_database").ToList();
+        }
+        
         foreach (var block in allBlocks)
         {
             var hasChildren = block["has_children"]?.ToObject<bool>() ?? false;
             if (block["type"]?.ToString() == "child_page" && includeChildPages == false)
+            {
+                continue;
+            }
+            
+            if (block["type"]?.ToString() == "child_database" && includeChildDatabases == false)
             {
                 continue;
             }
@@ -471,6 +483,17 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
                 {
                     block.Add("child_block_ids", JArray.FromObject(childBlocksIds));
                 }
+            }
+            else if (block["type"]?.ToString() == "child_database")
+            {
+                var databaseId = block["id"]!.ToString();
+                var databaseAction = new DatabaseActions(InvocationContext);
+                var database = await databaseAction.GetDatabaseAsJson(new()
+                {
+                    DatabaseId = databaseId
+                });
+                
+                childBlocksToAdd.Add(database);
             }
         }
 

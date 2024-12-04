@@ -134,6 +134,15 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
         var response = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
         return new(response);
     }
+    
+    public async Task<JObject> GetDatabaseAsJson([ActionParameter] DatabaseRequest input)
+    {
+        var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}";
+        var request = new NotionRequest(endpoint, Method.Get, Creds);
+
+        var response = await Client.ExecuteWithErrorHandling<JObject>(request);
+        return response;
+    }
 
     #region Utils
 
