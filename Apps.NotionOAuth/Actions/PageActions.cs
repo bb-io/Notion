@@ -513,6 +513,24 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
             var currentIndex = allBlocks.IndexOf(block);
             databasesAndInputPlaces.Add(currentIndex, database);
+            
+            var pages = await databaseAction.SearchPagesInDatabaseAsJsonAsync(databaseId);
+
+            foreach (var page in pages)
+            {
+                var pageAsBlockRequest = new NotionRequest($"{ApiEndpoints.Blocks}/{page.Id}", Method.Get, Creds);
+                var pageAsBlock = await Client.ExecuteWithErrorHandling<JObject>(pageAsBlockRequest);
+                
+                var childPageJObject = JObject.FromObject(page);
+                childPageJObject.Add("type", "child_page");
+                childPageJObject.Add("child_page", pageAsBlock["child_page"]);
+                childBlocksToAdd.Add(childPageJObject);
+                
+                var pageBlocks = await GetAllBlockChildrenRecursively(page.Id, pageAsHtmlRequest);
+                childBlocksToAdd.AddRange(pageBlocks);
+            }
+            
+            database.Add("child_block_ids", JArray.FromObject(pages.Select(x => x.Id)));
         }
     }
 
