@@ -337,10 +337,10 @@ public static class NotionHtmlParser
             return html.ToString();
         }
 
-        if (type == "child_page" && objectType == null)
+        if (type == "child_page" && objectType == "block")
         {
             var title = jObject["child_page"]!["title"]?.ToString();
-            return string.IsNullOrEmpty(title) ? null : $"<p>{title}</p>";
+            return string.IsNullOrEmpty(title) ? null : $"<p data-property-id=\"title\" data-property-name=\"title\" data-property-type=\"title\">{title}</p>";
         }
 
         if (type == null && objectType == "database")
@@ -582,28 +582,51 @@ public static class NotionHtmlParser
     {
         var childPage = JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue);
         var paragraphs = node.ChildNodes.Where(x => x.Name == "p").ToList();
-        var childPageProperties = (childPage["properties"] as JObject)!;
-        foreach (var paragraph in paragraphs)
+        var childPageProperties = childPage["properties"] as JObject;
+
+        if (childPageProperties == null)
         {
-            var dataPropertyId = paragraph.Attributes["data-property-id"]?.Value;
-            var dataPropertyName = paragraph.Attributes["data-property-name"]?.Value;
-            var dataPropertyType = paragraph.Attributes["data-property-type"]?.Value;
-
-            if (dataPropertyId != null && dataPropertyName != null && dataPropertyType != null)
+            var title = paragraphs.FirstOrDefault()?.InnerText ?? "Untilted";
+            var titleProperty = new TitlePropertyModel
             {
-                var propertyToUpdate = childPageProperties[dataPropertyName] as JObject;
-                if (propertyToUpdate == null) 
-                    continue;
-                    
-                var type = propertyToUpdate["type"]!.ToString();
-                var typeElement = propertyToUpdate[type]?.ToObject<List<JObject>>()?.FirstOrDefault()
-                                  ?? throw new Exception(
-                                      $"Couldn't find any editable element for json: {JsonConvert.SerializeObject(propertyToUpdate, Formatting.Indented)}");
+                Title =
+                [
+                    new()
+                    {
+                        Text = new TextContentModel
+                        {
+                            Content = title
+                        }
+                    }
+                ]
+            };
+            var titlePropertyJson = JObject.Parse(JsonConvert.SerializeObject(titleProperty));
+            childPage["properties"] = titlePropertyJson;
+        }
+        else
+        {
+            foreach (var paragraph in paragraphs)
+            {
+                var dataPropertyId = paragraph.Attributes["data-property-id"]?.Value;
+                var dataPropertyName = paragraph.Attributes["data-property-name"]?.Value;
+                var dataPropertyType = paragraph.Attributes["data-property-type"]?.Value;
 
-                var typeOfTextElement = typeElement["type"]!.ToString();
-                typeElement[typeOfTextElement]!["content"] = paragraph.InnerText;
-                propertyToUpdate[type] = JArray.Parse(JsonConvert.SerializeObject(new List<JObject> { typeElement }, JsonConfig.Settings));
-                childPageProperties[dataPropertyName] = propertyToUpdate;
+                if (dataPropertyId != null && dataPropertyName != null && dataPropertyType != null)
+                {
+                    var propertyToUpdate = childPageProperties[dataPropertyName] as JObject;
+                    if (propertyToUpdate == null) 
+                        continue;
+                    
+                    var type = propertyToUpdate["type"]!.ToString();
+                    var typeElement = propertyToUpdate[type]?.ToObject<List<JObject>>()?.FirstOrDefault()
+                                      ?? throw new Exception(
+                                          $"Couldn't find any editable element for json: {JsonConvert.SerializeObject(propertyToUpdate, Formatting.Indented)}");
+
+                    var typeOfTextElement = typeElement["type"]!.ToString();
+                    typeElement[typeOfTextElement]!["content"] = paragraph.InnerText;
+                    propertyToUpdate[type] = JArray.Parse(JsonConvert.SerializeObject(new List<JObject> { typeElement }, JsonConfig.Settings));
+                    childPageProperties[dataPropertyName] = propertyToUpdate;
+                }
             }
         }
         
