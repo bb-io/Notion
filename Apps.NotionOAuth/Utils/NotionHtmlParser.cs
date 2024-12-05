@@ -602,8 +602,8 @@ public static class NotionHtmlParser
 
                 var typeOfTextElement = typeElement["type"]!.ToString();
                 typeElement[typeOfTextElement]!["content"] = paragraph.InnerText;
-                propertyToUpdate[type] = new JObject(typeElement);
-                childPageProperties[dataPropertyName] = JArray.Parse(JsonConvert.SerializeObject(new List<JObject> { propertyToUpdate }, JsonConfig.Settings));
+                propertyToUpdate[type] = JArray.Parse(JsonConvert.SerializeObject(new List<JObject> { typeElement }, JsonConfig.Settings));
+                childPageProperties[dataPropertyName] = propertyToUpdate;
             }
         }
         
