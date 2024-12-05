@@ -16,4 +16,10 @@ public class DatabaseJsonEntity
 
     [JsonProperty("properties")]
     public JObject Properties { get; set; } = new();
+
+    [JsonProperty("cover")]
+    public JObject? Cover { get; set; }
+
+    [JsonProperty("icon")]
+    public JObject? Icon { get; set; } 
 }

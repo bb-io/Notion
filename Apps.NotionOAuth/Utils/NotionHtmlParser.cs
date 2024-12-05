@@ -42,13 +42,12 @@ public static class NotionHtmlParser
         var blocksById = jObjects.Where(x => x["id"] != null)
             .ToDictionary(x => NormalizeId(x["id"]!.ToString()));
 
-        SetChildPagePropertiesForBlocks(jObjects);
         OrganizeBlocks(jObjects, extractedPageId, blocksById);
 
         jObjects.ForEach(RemoveUnnecessaryProperties);
         return jObjects.ToArray();
     }
-    
+
     private static string ExtractAndNormalizePageId(string html)
     {
         var extractedPageId = ExtractPageId(html);
@@ -56,19 +55,9 @@ public static class NotionHtmlParser
             throw new Exception("Page ID not found in HTML");
         return NormalizeId(extractedPageId);
     }
-    
-    private static void SetChildPagePropertiesForBlocks(List<JObject> jObjects)
-    {
-        foreach (var block in jObjects)
-        {
-            if (block["type"]?.ToString() == "child_page")
-            {
-                SetChildPageProperties(block);
-            }
-        }
-    }
 
-    private static void OrganizeBlocks(List<JObject> jObjects, string extractedPageId, Dictionary<string, JObject> blocksById)
+    private static void OrganizeBlocks(List<JObject> jObjects, string extractedPageId,
+        Dictionary<string, JObject> blocksById)
     {
         for (int i = jObjects.Count - 1; i >= 0; i--)
         {
@@ -92,34 +81,14 @@ public static class NotionHtmlParser
             }
         }
     }
-    
-    private static void SetChildPageProperties(JObject block)
-    {
-        var title = block["child_page"]?["title"]?.ToString() ?? "Untitled";
-        var titleProperty = new TitlePropertyModel
-        {
-            Title =
-            [
-                new()
-                {
-                    Text = new TextContentModel
-                    {
-                        Content = title
-                    }
-                }
-            ]
-        };
-
-        var titlePropertyJson = JObject.Parse(JsonConvert.SerializeObject(titleProperty));
-        block["properties"] = titlePropertyJson;
-    }
 
     private static void AddBlockToParent(JObject block, JObject parentBlock)
     {
         var parentType = parentBlock["type"]?.ToString();
-        JObject parentContainer;
+        var parentObject = parentBlock["object"]?.ToString();
 
-        if (parentType == "child_page")
+        JObject parentContainer;
+        if (parentType == "child_page" || (string.IsNullOrEmpty(parentType) && parentObject == "database"))
         {
             // For 'child_page', add 'children' directly under the parent block
             parentContainer = parentBlock;
@@ -146,7 +115,7 @@ public static class NotionHtmlParser
         }
     }
 
-    public static string? GetParentId(this JObject block)
+    private static string? GetParentId(this JObject block)
     {
         var parent = block["parent"];
         if (parent != null)
@@ -155,9 +124,15 @@ public static class NotionHtmlParser
             {
                 return parent["page_id"]?.ToString();
             }
-            else if (parent["type"]?.ToString() == "block_id")
+
+            if (parent["type"]?.ToString() == "block_id")
             {
                 return parent["block_id"]?.ToString();
+            }
+
+            if (parent["type"]?.ToString() == "database_id")
+            {
+                return parent["database_id"]?.ToString();
             }
         }
 
@@ -168,19 +143,19 @@ public static class NotionHtmlParser
     {
         return id.Replace("-", "").ToLower();
     }
-    
+
     private static void RemoveUnnecessaryProperties(JObject block)
     {
         block.Remove("id");
-        
-        if(block.TryGetValue("object", out var objectType))
+
+        if (block.TryGetValue("object", out var objectType))
         {
-            if(objectType.ToString() != "database")
+            if (objectType.ToString() != "database")
             {
                 block.Remove("object");
             }
         }
-        
+
         block.Remove("created_time");
         block.Remove("last_edited_time");
         block.Remove("created_by");
@@ -204,7 +179,7 @@ public static class NotionHtmlParser
         else
         {
             block.Remove("parent");
-            
+
             var type = block["type"]?.ToString();
             var content = type == null ? null : block[type];
             if (content != null && content["children"] != null)
@@ -254,7 +229,8 @@ public static class NotionHtmlParser
 
             if (string.IsNullOrEmpty(type) && string.IsNullOrEmpty(objectType))
             {
-                throw new Exception("Block and object types are missing. Probably the block is not a valid Notion block. Please send this error to support team.");
+                throw new Exception(
+                    "Block and object types are missing. Probably the block is not a valid Notion block. Please send this error to support team.");
             }
 
             var content = type == null ? null : block[type];
@@ -283,7 +259,7 @@ public static class NotionHtmlParser
                 {
                     blockNode.InnerHtml = blockContent;
                 }
-                
+
                 bodyNode.AppendChild(blockNode);
                 continue;
             }
@@ -351,17 +327,17 @@ public static class NotionHtmlParser
         {
             var cells = jObject["table_row"]!["cells"]!.ToObject<List<List<JObject>>>()?.ToArray();
             var columns = cells.Select(x => x.FirstOrDefault()?["plain_text"]?.ToString()).ToArray();
-            
+
             var html = new StringBuilder();
             for (int i = 0; i < columns.Length; i++)
             {
                 html.Append($"<p data-column-number={i}>{columns[i]}</p>");
             }
-            
+
             return html.ToString();
         }
-        
-        if (type == "child_page")
+
+        if (type == "child_page" && objectType == null)
         {
             var title = jObject["child_page"]!["title"]?.ToString();
             return string.IsNullOrEmpty(title) ? null : $"<p>{title}</p>";
@@ -386,11 +362,51 @@ public static class NotionHtmlParser
                 return html.ToString();
             }
         }
-        if(type == null && objectType == "page")
+
+        if (type == "child_page" && objectType == "page")
         {
-            // TODO: Implement page block content
+            var properties = jObject["properties"] as JObject;
+            if (properties != null)
+            {
+                var html = new StringBuilder();
+                foreach (var property in properties)
+                {
+                    var propertyName = property.Key;
+                    var propertyValue = property.Value as JObject;
+                    var propertyId = propertyValue?["id"]!.ToString();
+                    var propertyType = propertyValue?["type"]?.ToString();
+
+                    var valueString = string.Empty;
+                    switch (propertyType)
+                    {
+                        case "title":
+                        case "rich_text":
+                            var richTexts = propertyValue?[propertyType] as JArray;
+                            if (richTexts != null)
+                            {
+                                foreach (var richText in richTexts)
+                                {
+                                    var textContent = richText["plain_text"]?.ToString();
+                                    if (textContent != null)
+                                    {
+                                        valueString += textContent;
+                                    }
+                                }
+                            }
+                            break;
+                    }
+
+                    if (!string.IsNullOrEmpty(valueString))
+                    {
+                        html.Append(
+                            $"<p data-property-id=\"{propertyId}\" data-property-name=\"{propertyName}\" data-property-type=\"{propertyType}\">{valueString}</p>");
+                    }
+                }
+
+                return html.ToString();
+            }
         }
-        
+
         return null;
     }
 
@@ -541,7 +557,7 @@ public static class NotionHtmlParser
             _ => ParseNode(node, type)
         };
     }
-    
+
     private static JObject ParseRowTableNode(HtmlNode node)
     {
         var cells = node.ChildNodes
@@ -551,25 +567,49 @@ public static class NotionHtmlParser
 
         var tableRow = JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue);
         var tableCells = tableRow["table_row"]!["cells"]!.ToObject<List<List<JObject>>>()!;
-        
+
         for (int i = 0; i < cells.Length; i++)
         {
             tableCells[i][0]["text"]!["content"] = cells[i];
             tableCells[i][0]["plain_text"] = cells[i];
         }
-        
+
         tableRow["table_row"]!["cells"] = JArray.FromObject(tableCells);
         return tableRow;
     }
-    
+
     private static JObject ParseChildPage(HtmlNode node)
     {
         var childPage = JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue);
-        var title = node.ChildNodes.FirstOrDefault(x => x.Name == "p")?.InnerText ?? "Untitled";
-        childPage["child_page"]!["title"] = title;
+        var paragraphs = node.ChildNodes.Where(x => x.Name == "p").ToList();
+        var childPageProperties = (childPage["properties"] as JObject)!;
+        foreach (var paragraph in paragraphs)
+        {
+            var dataPropertyId = paragraph.Attributes["data-property-id"]?.Value;
+            var dataPropertyName = paragraph.Attributes["data-property-name"]?.Value;
+            var dataPropertyType = paragraph.Attributes["data-property-type"]?.Value;
+
+            if (dataPropertyId != null && dataPropertyName != null && dataPropertyType != null)
+            {
+                var propertyToUpdate = childPageProperties[dataPropertyName] as JObject;
+                if (propertyToUpdate == null) 
+                    continue;
+                    
+                var type = propertyToUpdate["type"]!.ToString();
+                var typeElement = propertyToUpdate[type]?.ToObject<List<JObject>>()?.FirstOrDefault()
+                                  ?? throw new Exception(
+                                      $"Couldn't find any editable element for json: {JsonConvert.SerializeObject(propertyToUpdate, Formatting.Indented)}");
+
+                var typeOfTextElement = typeElement["type"]!.ToString();
+                typeElement[typeOfTextElement]!["content"] = paragraph.InnerText;
+                propertyToUpdate[type] = new JObject(typeElement);
+                childPageProperties[dataPropertyName] = JArray.Parse(JsonConvert.SerializeObject(new List<JObject> { propertyToUpdate }, JsonConfig.Settings));
+            }
+        }
+        
         return childPage;
     }
-    
+
     private static JObject ParseDatabaseNode(HtmlNode node)
     {
         var database = JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue);
@@ -578,7 +618,7 @@ public static class NotionHtmlParser
         {
             var titles = database["title"]!.ToObject<List<JObject>>();
             var firstTitle = titles?.FirstOrDefault();
-            
+
             if (firstTitle is not null)
             {
                 firstTitle["text"]!["content"] = title;
@@ -590,7 +630,7 @@ public static class NotionHtmlParser
         {
             database.Remove("developer_survey");
         }
-        
+
         if (database.TryGetValue("request_id", out _))
         {
             database.Remove("request_id");

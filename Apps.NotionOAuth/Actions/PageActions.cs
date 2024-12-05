@@ -65,12 +65,14 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         [ActionParameter] CreatePageInput input,
         [ActionParameter] FileRequest file)
     {
-        var page = await CreatePage(input);
         var fileStream = await fileManagementClient.DownloadAsync(file.File);
         var fileBytes = await fileStream.GetByteData();
         var html = Encoding.UTF8.GetString(fileBytes);
 
         var blocks = NotionHtmlParser.ParseHtml(html);
+        var json = JsonConvert.SerializeObject(blocks, Formatting.Indented, JsonConfig.Settings);
+        
+        var page = await CreatePage(input);
         await new BlockActions(InvocationContext).AppendBlockChildren(page.Id, blocks);
 
         return page;

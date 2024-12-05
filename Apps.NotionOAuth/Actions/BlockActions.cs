@@ -118,15 +118,20 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             RemoveUnnecessaryProperties(page, "type", "child_page");
 
             var children = page["children"]?.ToObject<JObject[]>()
-                           ?? throw new InvalidOperationException("Child pages must have children");
+                           ?? Array.Empty<JObject>();
             page.Remove("children");
 
             var parent = page["parent"]?.ToObject<JObject>()
-                         ?? throw new InvalidOperationException("Child pages must have a parent");
+                         ?? throw new InvalidOperationException($"Child page [{blockId}] must have a parent");
 
             if (parent.TryGetValue("page_id", out _))
             {
                 parent["page_id"] = blockId;
+                page["parent"] = parent;
+            }
+            else if (parent.TryGetValue("database_id", out _))
+            {
+                parent["database_id"] = blockId;
                 page["parent"] = parent;
             }
 
@@ -134,7 +139,10 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
                 .WithJsonBody(page, JsonConfig.Settings);
 
             var pageResponse = await Client.ExecuteWithErrorHandling<PageResponse>(request);
-            await AppendBlockChildren(pageResponse.Id, children.ToArray());
+            if (children.Length > 0)
+            {
+                await AppendBlockChildren(pageResponse.Id, children.ToArray());
+            }
         }
     }
 
@@ -150,11 +158,16 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
                 parent["page_id"] = blockId;
                 database["parent"] = parent;
             }
+            
+            var children = database["children"]?.ToObject<JObject[]>()
+                           ?? throw new InvalidOperationException("Child database must have children");
+            
+            database.Remove("children");
 
             var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds)
                 .WithJsonBody(database, JsonConfig.Settings);
-
-            await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
+            var createdDatabase = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
+            await AppendBlockChildren(createdDatabase.Id, children.ToArray());
         }
     }
 
