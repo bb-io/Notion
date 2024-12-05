@@ -1,6 +1,7 @@
 using System.Text;
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models;
+using Apps.NotionOAuth.Models.Request.Page;
 using Blackbird.Applications.Sdk.Utils.Extensions.System;
 using Blackbird.Applications.Sdk.Utils.Html.Extensions;
 using HtmlAgilityPack;
@@ -203,7 +204,7 @@ public static class NotionHtmlParser
         return metaNode?.Attributes["content"]?.Value;
     }
 
-    public static string ParseBlocks(string pageId, JObject[] blocks)
+    public static string ParseBlocks(string pageId, JObject[] blocks, GetPageAsHtmlRequest actionRequest)
     {
         var htmlDoc = new HtmlDocument();
         var htmlNode = htmlDoc.CreateElement("html");
@@ -254,7 +255,7 @@ public static class NotionHtmlParser
                 var typeAttr = NonTextTranslatableTypes.Contains(typeOrObject) ? typeOrObject : UntranslatableType;
                 blockNode.SetAttributeValue(TypeAttr, typeAttr);
                 blockNode.SetAttributeValue(UntranslatableContentAttr, block.ToString());
-                var blockContent = GetNonTextBlockContent(block);
+                var blockContent = GetNonTextBlockContent(block, actionRequest);
                 if (!string.IsNullOrEmpty(blockContent))
                 {
                     blockNode.InnerHtml = blockContent;
@@ -318,7 +319,7 @@ public static class NotionHtmlParser
         return htmlDoc.DocumentNode.OuterHtml;
     }
 
-    private static string? GetNonTextBlockContent(JObject jObject)
+    private static string? GetNonTextBlockContent(JObject jObject, GetPageAsHtmlRequest actionRequest)
     {
         var type = jObject["type"]?.ToString();
         var objectType = jObject["object"]?.ToString();
@@ -369,6 +370,7 @@ public static class NotionHtmlParser
             if (properties != null)
             {
                 var html = new StringBuilder();
+                
                 foreach (var property in properties)
                 {
                     var propertyName = property.Key;
@@ -381,6 +383,11 @@ public static class NotionHtmlParser
                     {
                         case "title":
                         case "rich_text":
+                            if (actionRequest.IncludePageProperties.HasValue && actionRequest.IncludePageProperties.Value == false && propertyType != "title")
+                            {
+                                break;
+                            }
+                            
                             var richTexts = propertyValue?[propertyType] as JArray;
                             if (richTexts != null)
                             {

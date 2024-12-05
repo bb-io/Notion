@@ -81,7 +81,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         [ActionParameter] GetPageAsHtmlRequest pageAsHtmlRequest)
     {
         var response = await GetAllBlockChildrenRecursively(page.PageId, pageAsHtmlRequest);
-        var html = NotionHtmlParser.ParseBlocks(page.PageId, response.ToArray());
+        var html = NotionHtmlParser.ParseBlocks(page.PageId, response.ToArray(), pageAsHtmlRequest);
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(html));
         var file = await fileManagementClient.UploadAsync(stream, MediaTypeNames.Text.Html, $"{page.PageId}.html");
