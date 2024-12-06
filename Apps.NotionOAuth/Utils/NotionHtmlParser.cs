@@ -383,7 +383,8 @@ public static class NotionHtmlParser
                     {
                         case "title":
                         case "rich_text":
-                            if (actionRequest.IncludePageProperties.HasValue && actionRequest.IncludePageProperties.Value == false && propertyType != "title")
+                            var includePageProperties = actionRequest.IncludePageProperties ?? false;
+                            if (!includePageProperties && propertyType != "title")
                             {
                                 break;
                             }

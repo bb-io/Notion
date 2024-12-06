@@ -75,12 +75,12 @@ Blackbird can convert `Page` content to an HTML file and back, enabling automati
 
 Untranslatable content will also be transferred, with a few exceptions. These include:
 
-- **Reference**
+- **Link preview**
 - **Notion-hosted files** (such as PDFs, audio, video, or images; however, external URLs will work fine)
 
 For now, these types won't be transferred. We are continuously working to improve this process.
 
-> Translating child pages is also fully supported. You can translate child pages by setting the 'Include child pages' optional input to true for the 'Get page as HTML' action. If this input is not set or is set to false, we will not extract and translate child pages, and the new (or updated) page will not include these child pages.
+> Translating child pages and child databases is fully supported. You can translate child pages and/or child databases by setting the 'Include child pages' and 'Include child databases' optional inputs to true for the 'Get page as HTML' action. If these inputs are not set or are set to false, we will not extract or translate child pages/databases, and the new (or updated) page will not include these child pages/databases.
 
 ## Feedback  
   
