@@ -49,7 +49,7 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 
 - **List pages** returns a list of all pages in the workspace. You can filter the list by create/edited time.
 - **Get page as HTML** returns specified page's content as an HTML file.
-- **Create/Update page from HTML** create/updates page from an HTML file.
+- **Create/Update page from HTML** creates/updates a page from an HTML file. We recommend using the 'Create page from HTML' action, as it doesn't affect existing content. On the other hand, the 'Update page from HTML' action does affect existing content. Since Notion doesn't allow updating blocks directly, it will first delete all the content of the page and then add it from the HTML file.
 - **Get page string/number/date/boolean/files/multiple property** returns the value of a database entry's property of specific type.
 - **Set page string/number/boolean/files/multiple property** updates the value of a database entry's property of specific type.
 - **Set page property as empty**
@@ -75,12 +75,12 @@ Blackbird can convert `Page` content to an HTML file and back, enabling automati
 
 Untranslatable content will also be transferred, with a few exceptions. These include:
 
-- **Reference**
+- **Link preview**
 - **Notion-hosted files** (such as PDFs, audio, video, or images; however, external URLs will work fine)
 
 For now, these types won't be transferred. We are continuously working to improve this process.
 
-> Translating child pages is also fully supported. You can translate child pages by setting the 'Include child pages' optional input to true for the 'Get page as HTML' action. If this input is not set or is set to false, we will not extract and translate child pages, and the new (or updated) page will not include these child pages.
+> Translating child pages and child databases is fully supported. You can translate child pages and/or child databases by setting the 'Include child pages' and 'Include child databases' optional inputs to true for the 'Get page as HTML' action. If these inputs are not set or are set to false, we will not extract or translate child pages/databases, and the new (or updated) page will not include these child pages/databases.
 
 ## Feedback  
   

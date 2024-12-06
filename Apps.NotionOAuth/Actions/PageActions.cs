@@ -69,10 +69,9 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var fileStream = await fileManagementClient.DownloadAsync(file.File);
         var fileBytes = await fileStream.GetByteData();
         var html = Encoding.UTF8.GetString(fileBytes);
-        
+
         var blocks = NotionHtmlParser.ParseHtml(html);
         await new BlockActions(InvocationContext).AppendBlockChildren(page.Id, blocks);
-
         return page;
     }
 
@@ -82,13 +81,13 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         [ActionParameter] GetPageAsHtmlRequest pageAsHtmlRequest)
     {
         var response = await GetAllBlockChildrenRecursively(page.PageId, pageAsHtmlRequest);
-        var html = NotionHtmlParser.ParseBlocks(page.PageId, response.ToArray());
+        var html = NotionHtmlParser.ParseBlocks(page.PageId, response.ToArray(), pageAsHtmlRequest);
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(html));
         var file = await fileManagementClient.UploadAsync(stream, MediaTypeNames.Text.Html, $"{page.PageId}.html");
         return new() { File = file };
     }
-    
+
     [Action("Get page as HTML (Debug)", Description = "Get content of a specific page as HTML (Debug)")]
     public async Task<PageContentResponse> GetPageAsHtmlDebug(
         [ActionParameter] PageRequest page)
@@ -108,19 +107,19 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var fileStream = await fileManagementClient.DownloadAsync(file.File);
         var fileBytes = await fileStream.GetByteData();
         var html = Encoding.UTF8.GetString(fileBytes);
-        
+
         var extractedPageId = NotionHtmlParser.ExtractPageId(html);
-        var pageId = page.PageId ?? extractedPageId 
+        var pageId = page.PageId ?? extractedPageId
             ?? throw new("Could not extract page ID from HTML. Please provide a page ID in optional input");
-        
+
         var actions = new BlockActions(InvocationContext);
         var children = await actions.ListBlockChildren(new()
         {
             BlockId = pageId
         });
-        
+
         var excludeChildTypes = new[] { "file", "audio" };
-        
+
         // Can't remove all blocks in parallel, because it can cause rate limiting errors
         foreach (var child in children.Children)
         {
@@ -139,7 +138,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
                 // ignored
             }
         }
-        
+
         var blocks = NotionHtmlParser.ParseHtml(html);
         await actions.AppendBlockChildren(pageId, blocks);
     }
@@ -169,7 +168,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
     [Action("Add content to page", Description = "Add text content to the bottom of a page")]
     public async Task AppendPageContent(
-    [ActionParameter] PageRequest page, [ActionParameter][Display("Text content")] string text)
+        [ActionParameter] PageRequest page, [ActionParameter] [Display("Text content")] string text)
     {
         var actions = new BlockActions(InvocationContext);
         var blocks = NotionHtmlParser.ParseText(text);
@@ -191,7 +190,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         return new()
         {
             PropertyValue = response.GetStringValue()
-    };
+        };
     }
 
     [Action("Get page number property", Description = "Get value of a number page property")]
@@ -262,7 +261,8 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         return new()
         {
-            PropertyValue = value.Select(x => new FileReference(new(HttpMethod.Get, x), input.PageId, MediaTypeNames.Application.Octet))
+            PropertyValue = value.Select(x =>
+                new FileReference(new(HttpMethod.Get, x), input.PageId, MediaTypeNames.Application.Octet))
         };
     }
 
@@ -274,11 +274,12 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         try
         {
-            var propertyType = response["results"]?.FirstOrDefault()?["type"]!.ToString() ?? response["type"]!.ToString();
+            var propertyType = response["results"]?.FirstOrDefault()?["type"]!.ToString() ??
+                               response["type"]!.ToString();
 
             if (propertyType is "property_item")
                 propertyType = response["property_item"]!["type"].ToString();
-            
+
             var value = propertyType switch
             {
                 "multi_select" => response["multi_select"]!.Select(x => x["name"]!.ToString()),
@@ -387,8 +388,8 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         };
 
         await UpdatePageProperty(input.PageId, name, payload);
-    }    
-    
+    }
+
     [Action("Set page date property", Description = "Set new value of a date page property")]
     public async Task SetDateProperty([ActionParameter] SetPageDatePropertyRequest input)
     {
@@ -417,7 +418,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             "status" => new JObject { { "status", null } },
             "select" => new JObject { { "select", null } },
             "checkbox" => new JObject { { "checkbox", "false" } },
-            "multi_select" => new JObject{ { "multi_select", new JArray() } },
+            "multi_select" => new JObject { { "multi_select", new JArray() } },
             "rich_text" => new JObject { { "rich_text", new JArray() } },
             "files" => new JObject { { "files", new JArray() } },
             "relation" => new JObject { { "relation", new JArray() } },
@@ -434,50 +435,121 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
     #region Utils
 
-    private async Task<List<JObject>> GetAllBlockChildrenRecursively(string blockId, GetPageAsHtmlRequest? pageAsHtmlRequest)
+    private async Task<List<JObject>> GetAllBlockChildrenRecursively(string blockId,
+        GetPageAsHtmlRequest? pageAsHtmlRequest)
     {
         if (string.IsNullOrEmpty(blockId))
         {
             throw new ArgumentException("Block ID cannot be null or empty.", nameof(blockId));
         }
-        
+
         var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
         var request = new NotionRequest(endpoint, Method.Get, Creds);
         var allBlocks = await Client.Paginate<JObject>(request);
         var childBlocksToAdd = new List<JObject>();
+
         var includeChildPages = pageAsHtmlRequest?.IncludeChildPages ?? false;
-        
-        if(includeChildPages == false)
+        var includeChildDatabases = pageAsHtmlRequest?.IncludeChildDatabases ?? false;
+
+        allBlocks = FilterBlocks(allBlocks, includeChildPages, includeChildDatabases);
+
+        var databasesAndInputPlaces = new Dictionary<int, JObject>();
+        foreach (var block in allBlocks)
+        {
+            await ProcessBlock(block, pageAsHtmlRequest, childBlocksToAdd, databasesAndInputPlaces, allBlocks);
+        }
+
+        InsertDatabases(allBlocks, databasesAndInputPlaces);
+        allBlocks.AddRange(childBlocksToAdd);
+        allBlocks = allBlocks.Where(x => x["type"]?.ToString() != "child_database").ToList();
+
+        return allBlocks;
+    }
+
+    private List<JObject> FilterBlocks(List<JObject> allBlocks, bool includeChildPages, bool includeChildDatabases)
+    {
+        if (!includeChildPages)
         {
             allBlocks = allBlocks.Where(x => x["type"]?.ToString() != "child_page").ToList();
         }
-        
-        foreach (var block in allBlocks)
+
+        if (!includeChildDatabases)
         {
-            var hasChildren = block["has_children"]?.ToObject<bool>() ?? false;
-            if (block["type"]?.ToString() == "child_page" && includeChildPages == false)
-            {
-                continue;
-            }
-            
-            if (hasChildren)
-            {
-                var childBlocks = await GetAllBlockChildrenRecursively(block["id"]!.ToString(), pageAsHtmlRequest);
-                childBlocksToAdd.AddRange(childBlocks);
-                
-                var blockIdValue = block["id"]?.ToString();
-                var childBlocksIds = childBlocks.Where(x => x["parent"]!["block_id"]?.ToString() == blockIdValue).Select(x => x["id"]!.ToString());
-                if (childBlocksIds.Any())
-                {
-                    block.Add("child_block_ids", JArray.FromObject(childBlocksIds));
-                }
-            }
+            allBlocks = allBlocks.Where(x => x["type"]?.ToString() != "child_database").ToList();
         }
 
-        allBlocks.AddRange(childBlocksToAdd);
         return allBlocks;
     }
-    
+
+    private async Task ProcessBlock(JObject block, GetPageAsHtmlRequest? pageAsHtmlRequest,
+        List<JObject> childBlocksToAdd, Dictionary<int, JObject> databasesAndInputPlaces, List<JObject> allBlocks)
+    {
+        var hasChildren = block["has_children"]?.ToObject<bool>() ?? false;
+
+        if (ShouldSkipBlock(block, pageAsHtmlRequest))
+        {
+            return;
+        }
+
+        if (hasChildren)
+        {
+            var childBlocks = await GetAllBlockChildrenRecursively(block["id"]!.ToString(), pageAsHtmlRequest);
+            childBlocksToAdd.AddRange(childBlocks);
+
+            var blockIdValue = block["id"]?.ToString();
+            var childBlocksIds = childBlocks.Where(x => x["parent"]!["block_id"]?.ToString() == blockIdValue)
+                .Select(x => x["id"]!.ToString());
+            if (childBlocksIds.Any())
+            {
+                block.Add("child_block_ids", JArray.FromObject(childBlocksIds));
+            }
+        }
+        else if (block["type"]?.ToString() == "child_database")
+        {
+            var databaseId = block["id"]!.ToString();
+            var databaseAction = new DatabaseActions(InvocationContext);
+            var database = await databaseAction.GetDatabaseAsJson(new() { DatabaseId = databaseId });
+
+            var currentIndex = allBlocks.IndexOf(block);
+            databasesAndInputPlaces.Add(currentIndex, database);
+            
+            var pages = await databaseAction.SearchPagesInDatabaseAsJsonAsync(databaseId);
+
+            foreach (var page in pages)
+            {
+                var pageAsBlockRequest = new NotionRequest($"{ApiEndpoints.Blocks}/{page.Id}", Method.Get, Creds);
+                var pageAsBlock = await Client.ExecuteWithErrorHandling<JObject>(pageAsBlockRequest);
+                
+                var childPageJObject = JObject.FromObject(page);
+                childPageJObject.Add("type", "child_page");
+                childPageJObject.Add("child_page", pageAsBlock["child_page"]);
+                childBlocksToAdd.Add(childPageJObject);
+                
+                var pageBlocks = await GetAllBlockChildrenRecursively(page.Id, pageAsHtmlRequest);
+                childBlocksToAdd.AddRange(pageBlocks);
+            }
+            
+            database.Add("child_block_ids", JArray.FromObject(pages.Select(x => x.Id)));
+        }
+    }
+
+    private bool ShouldSkipBlock(JObject block, GetPageAsHtmlRequest? pageAsHtmlRequest)
+    {
+        var includeChildPages = pageAsHtmlRequest?.IncludeChildPages ?? false;
+        var includeChildDatabases = pageAsHtmlRequest?.IncludeChildDatabases ?? false;
+
+        return (block["type"]?.ToString() == "child_page" && !includeChildPages) ||
+               (block["type"]?.ToString() == "child_database" && !includeChildDatabases);
+    }
+
+    private void InsertDatabases(List<JObject> allBlocks, Dictionary<int, JObject> databasesAndInputPlaces)
+    {
+        foreach (var (index, database) in databasesAndInputPlaces)
+        {
+            allBlocks.Insert(index, database);
+        }
+    }
+
     private Task<JObject> GetPageProperty(string pageId, string propertyId)
     {
         var endpoint = $"{ApiEndpoints.Pages}/{pageId}/properties/{propertyId}";

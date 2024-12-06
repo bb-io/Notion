@@ -5,6 +5,7 @@ using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.Models.Request.Block;
 using Apps.NotionOAuth.Models.Response.Block;
+using Apps.NotionOAuth.Models.Response.DataBase;
 using Apps.NotionOAuth.Models.Response.Page;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
@@ -54,12 +55,33 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
     internal async Task AppendBlockChildren(string blockId, JObject[] blocks)
     {
+        var blockChunks = ChunkBlocks(blocks);
+
+        foreach (var blockChunk in blockChunks)
+        {
+            if (blockChunk.Any(x => x["type"]?.ToString() == "child_page"))
+            {
+                await ProcessChildPages(blockId, blockChunk);
+            }
+            else if (blockChunk.Any(x => x["object"]?.ToString() == "database"))
+            {
+                await ProcessDatabases(blockId, blockChunk);
+            }
+            else
+            {
+                await ProcessBlocks(blockId, blockChunk);
+            }
+        }
+    }
+
+    private List<List<JObject>> ChunkBlocks(JObject[] blocks)
+    {
         var blockChunks = new List<List<JObject>>();
         var currentChunk = new List<JObject>();
 
         foreach (var block in blocks)
         {
-            if (block["type"]?.ToString() == "child_page")
+            if (block["type"]?.ToString() == "child_page" || block["object"]?.ToString() == "database")
             {
                 if (currentChunk.Any())
                 {
@@ -80,60 +102,94 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
                 }
             }
         }
-        
+
         if (currentChunk.Any())
         {
             blockChunks.Add(currentChunk);
         }
-        
-        foreach (var blockChunk in blockChunks)
+
+        return blockChunks;
+    }
+
+    private async Task ProcessChildPages(string blockId, List<JObject> blockChunk)
+    {
+        foreach (var page in blockChunk)
         {
-            var hasChildPage = blockChunk.Any(x => x["type"]?.ToString() == "child_page");
+            RemoveUnnecessaryProperties(page, "type", "child_page");
 
-            if (hasChildPage)
+            var children = page["children"]?.ToObject<JObject[]>()
+                           ?? Array.Empty<JObject>();
+            page.Remove("children");
+
+            var parent = page["parent"]?.ToObject<JObject>()
+                         ?? throw new InvalidOperationException($"Child page [{blockId}] must have a parent");
+
+            if (parent.TryGetValue("page_id", out _))
             {
-                foreach (var page in blockChunk)
-                {
-                    if (page.TryGetValue("type", out _))
-                    {
-                        page.Remove("type");
-                    }
-                    
-                    if (page.TryGetValue("child_page", out _))
-                    {
-                        page.Remove("child_page");
-                    }
-                    
-                    var children = page["children"]?.ToObject<JObject[]>()
-                        ?? throw new InvalidOperationException("Child pages must have children");
-                    page.Remove("children");
-                    
-                    var parent = page["parent"]?.ToObject<JObject>()
-                        ?? throw new InvalidOperationException("Child pages must have a parent");
-                    
-                    if(parent.TryGetValue("page_id", out _))
-                    {
-                        parent["page_id"] = blockId;
-                        page["parent"] = parent;
-                    }
-                    
-                    var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
-                        .WithJsonBody(page, JsonConfig.Settings);
-
-                    var pageResponse = await Client.ExecuteWithErrorHandling<PageResponse>(request);
-                    await AppendBlockChildren(pageResponse.Id, children.ToArray());
-                }
+                parent["page_id"] = blockId;
+                page["parent"] = parent;
             }
-            else
+            else if (parent.TryGetValue("database_id", out _))
             {
-                var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
-                var request = new NotionRequest(endpoint, Method.Patch, Creds)
-                    .WithJsonBody(new ChildrenRequest
-                    {
-                        Children = blockChunk.ToArray()
-                    }, JsonConfig.Settings);
+                parent["database_id"] = blockId;
+                page["parent"] = parent;
+            }
 
-                await Client.ExecuteWithErrorHandling(request);
+            var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
+                .WithJsonBody(page, JsonConfig.Settings);
+
+            var pageResponse = await Client.ExecuteWithErrorHandling<PageResponse>(request);
+            if (children.Length > 0)
+            {
+                await AppendBlockChildren(pageResponse.Id, children.ToArray());
+            }
+        }
+    }
+
+    private async Task ProcessDatabases(string blockId, List<JObject> blockChunk)
+    {
+        foreach (var database in blockChunk)
+        {
+            var parent = database["parent"]?.ToObject<JObject>()
+                         ?? throw new InvalidOperationException("Databases must have a parent");
+
+            if (parent.TryGetValue("page_id", out _))
+            {
+                parent["page_id"] = blockId;
+                database["parent"] = parent;
+            }
+            
+            var children = database["children"]?.ToObject<JObject[]>()
+                           ?? throw new InvalidOperationException("Child database must have children");
+            
+            database.Remove("children");
+
+            var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds)
+                .WithJsonBody(database, JsonConfig.Settings);
+            var createdDatabase = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
+            await AppendBlockChildren(createdDatabase.Id, children.ToArray());
+        }
+    }
+
+    private async Task ProcessBlocks(string blockId, List<JObject> blockChunk)
+    {
+        var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
+        var request = new NotionRequest(endpoint, Method.Patch, Creds)
+            .WithJsonBody(new ChildrenRequest
+            {
+                Children = blockChunk.ToArray()
+            }, JsonConfig.Settings);
+
+        await Client.ExecuteWithErrorHandling(request);
+    }
+
+    private void RemoveUnnecessaryProperties(JObject jObject, params string[] properties)
+    {
+        foreach (var property in properties)
+        {
+            if (jObject.TryGetValue(property, out _))
+            {
+                jObject.Remove(property);
             }
         }
     }
