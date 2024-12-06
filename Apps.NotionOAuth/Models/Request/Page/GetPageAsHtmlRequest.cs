@@ -10,6 +10,6 @@ public class GetPageAsHtmlRequest
     [Display("Include child databases")]
     public bool? IncludeChildDatabases { get; set; }
     
-    [Display("Include text properties")] 
+    [Display("Include database text properties")] 
     public bool? IncludePageProperties { get; set; }
 }

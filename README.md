@@ -49,7 +49,7 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 
 - **List pages** returns a list of all pages in the workspace. You can filter the list by create/edited time.
 - **Get page as HTML** returns specified page's content as an HTML file.
-- **Create/Update page from HTML** create/updates page from an HTML file.
+- **Create/Update page from HTML** creates/updates a page from an HTML file. We recommend using the 'Create page from HTML' action, as it doesn't affect existing content. On the other hand, the 'Update page from HTML' action does affect existing content. Since Notion doesn't allow updating blocks directly, it will first delete all the content of the page and then add it from the HTML file.
 - **Get page string/number/date/boolean/files/multiple property** returns the value of a database entry's property of specific type.
 - **Set page string/number/boolean/files/multiple property** updates the value of a database entry's property of specific type.
 - **Set page property as empty**
