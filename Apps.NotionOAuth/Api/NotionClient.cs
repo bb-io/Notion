@@ -2,6 +2,7 @@ using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models.Request;
 using Apps.NotionOAuth.Models.Response;
 using Blackbird.Applications.Sdk.Common.Authentication;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Utils.Extensions.Http;
 using Blackbird.Applications.Sdk.Utils.Extensions.String;
 using Blackbird.Applications.Sdk.Utils.RestSharp;
@@ -24,7 +25,7 @@ public class NotionClient : BlackBirdRestClient
     protected override Exception ConfigureErrorException(RestResponse response)
     {
         var error = JsonConvert.DeserializeObject<ErrorResponse>(response.Content!)!;
-        return new(error.Message);
+        return new PluginApplicationException(error.Message);
     }
 
     public async Task<List<T>> SearchAll<T>(AuthenticationCredentialsProvider[] creds, string type, string? query = null)

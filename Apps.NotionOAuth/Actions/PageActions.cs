@@ -23,6 +23,7 @@ using Blackbird.Applications.Sdk.Utils.Extensions.Http;
 using Newtonsoft.Json.Linq;
 using RestSharp;
 using Apps.NotionOAuth.Extensions;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Newtonsoft.Json;
 
 namespace Apps.NotionOAuth.Actions;
@@ -295,7 +296,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         }
         catch (Exception ex)
         {
-            throw new($"{ex.Message}. Property: {response}");
+            throw new PluginApplicationException($"{ex.Message}. Property: {response}");
         }
     }
 
