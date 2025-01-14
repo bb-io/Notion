@@ -5,13 +5,11 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.PageProperties.Getters;
 
-public class StringPagePropertiesDataHandler : PagePropertiesDataHandler
+public class StringPagePropertiesDataHandler(
+    InvocationContext invocationContext,
+    [ActionParameter] StringPropertyRequest input)
+    : PagePropertiesDataHandler(invocationContext, input.DatabaseId)
 {
     protected override string[] Types => new[]
         { "title", "email", "phone_number", "status", "created_by", "last_edited_by", "select", "url", "rich_text", "relation" };
-
-    public StringPagePropertiesDataHandler(InvocationContext invocationContext,
-        [ActionParameter] StringPropertyRequest input) : base(invocationContext, input.DatabaseId)
-    {
-    }
 }

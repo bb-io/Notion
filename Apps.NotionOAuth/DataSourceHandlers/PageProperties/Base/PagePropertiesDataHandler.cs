@@ -8,18 +8,13 @@ using RestSharp;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.PageProperties.Base;
 
-public abstract class PagePropertiesDataHandler : NotionInvocable, IAsyncDataSourceHandler
+public abstract class PagePropertiesDataHandler(InvocationContext invocationContext, string dataBaseId)
+    : NotionInvocable(invocationContext), IAsyncDataSourceItemHandler
 {
     protected abstract string[] Types { get; }
-    private string DataBaseId { get; set; }
+    private string DataBaseId { get; set; } = dataBaseId;
 
-    public PagePropertiesDataHandler(InvocationContext invocationContext, string dataBaseId) : base(invocationContext)
-    {
-        DataBaseId = dataBaseId;
-    }
-
-    public async Task<Dictionary<string, string>> GetDataAsync(DataSourceContext context,
-        CancellationToken cancellationToken)
+    public async Task<IEnumerable<DataSourceItem>> GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(DataBaseId))
             throw new("Please fill in the Database input first");
@@ -32,6 +27,6 @@ public abstract class PagePropertiesDataHandler : NotionInvocable, IAsyncDataSou
         return response.Properties.Values
             .Where(x => Types.Contains(x.Type) &&
                         x.Name.Contains(context.SearchString ?? string.Empty, StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(x => x.Id, x => x.Name);
+            .Select(x => new DataSourceItem(x.Id, x.Name));
     }
 }

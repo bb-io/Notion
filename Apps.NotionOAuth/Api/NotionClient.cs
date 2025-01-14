@@ -11,16 +11,12 @@ using RestSharp;
 
 namespace Apps.NotionOAuth.Api;
 
-public class NotionClient : BlackBirdRestClient
+public class NotionClient() : BlackBirdRestClient(new()
+{
+    BaseUrl = Urls.Api.ToUri()
+})
 {
     protected override JsonSerializerSettings? JsonSettings => JsonConfig.Settings;
-
-    public NotionClient() : base(new()
-    {
-        BaseUrl = Urls.Api.ToUri()
-    })
-    {
-    }
 
     protected override Exception ConfigureErrorException(RestResponse response)
     {

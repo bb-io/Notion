@@ -6,13 +6,11 @@ using Newtonsoft.Json.Linq;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.DatabaseProperties;
 
-public class SelectDatabasePropertyDataHandler : DatabasePropertiesDataHandler
+public class SelectDatabasePropertyDataHandler(
+    InvocationContext invocationContext,
+    [ActionParameter] SearchPagesInDatabaseRequest input)
+    : DatabasePropertiesDataHandler(invocationContext, input.DatabaseId)
 {
-    public SelectDatabasePropertyDataHandler(InvocationContext invocationContext, [ActionParameter] SearchPagesInDatabaseRequest input)
-        : base(invocationContext, input.DatabaseId)
-    {
-    }
-
     protected override Dictionary<string, string> GetAppropriateProperties(Dictionary<string, JObject> properties)
     {
         return properties

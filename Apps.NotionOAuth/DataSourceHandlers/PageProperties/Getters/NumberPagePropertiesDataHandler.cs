@@ -5,12 +5,10 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.PageProperties.Getters;
 
-public class NumberPagePropertiesDataHandler : PagePropertiesDataHandler
+public class NumberPagePropertiesDataHandler(
+    InvocationContext invocationContext,
+    [ActionParameter] PageNumberPropertyRequest input)
+    : PagePropertiesDataHandler(invocationContext, input.DatabaseId)
 {
     protected override string[] Types => new[] { "number", "unique_id" };
-
-    public NumberPagePropertiesDataHandler(InvocationContext invocationContext,
-        [ActionParameter] PageNumberPropertyRequest input) : base(invocationContext, input.DatabaseId)
-    {
-    }
 }

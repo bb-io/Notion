@@ -328,6 +328,16 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     [Action("Set page number property", Description = "Set new value of a number page property")]
     public async Task SetNumberProperty([ActionParameter] SetPageNumberPropertyRequest input)
     {
+        if (string.IsNullOrEmpty(input.PageId))
+        {
+            throw new PluginMisconfigurationException("Page ID is null or empty. Please provide a valid ID.");
+        }
+        
+        if (string.IsNullOrEmpty(input.PropertyId))
+        {
+            throw new PluginMisconfigurationException("Property ID is null or empty. Please provide a valid ID.");
+        }
+        
         var (name, property) = await GetPagePropertyWithName(input.PageId, input.PropertyId);
 
         var payload = property["type"]!.ToString() switch

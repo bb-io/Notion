@@ -5,12 +5,10 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.PageProperties.Setters;
 
-public class SetDatePagePropertyDataHandler : PagePropertiesDataHandler
+public class SetDatePagePropertyDataHandler(
+    InvocationContext invocationContext,
+    [ActionParameter] SetPageDatePropertyRequest input)
+    : PagePropertiesDataHandler(invocationContext, input.DatabaseId)
 {
     protected override string[] Types => new[] { "date" };
-
-    public SetDatePagePropertyDataHandler(InvocationContext invocationContext,
-        [ActionParameter] SetPageDatePropertyRequest input) : base(invocationContext, input.DatabaseId)
-    {
-    }
 }

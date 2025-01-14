@@ -6,13 +6,9 @@ using RestSharp;
 
 namespace Apps.NotionOAuth.Api;
 
-public class NotionRequest : BlackBirdRestRequest
+public class NotionRequest(string resource, Method method, IEnumerable<AuthenticationCredentialsProvider> creds)
+    : BlackBirdRestRequest(resource, method, creds)
 {
-    public NotionRequest(string resource, Method method, IEnumerable<AuthenticationCredentialsProvider> creds) : base(
-        resource, method, creds)
-    {
-    }
-
     protected override void AddAuth(IEnumerable<AuthenticationCredentialsProvider> creds)
     {
         var token = creds.Get(CredsNames.AccessToken).Value;
