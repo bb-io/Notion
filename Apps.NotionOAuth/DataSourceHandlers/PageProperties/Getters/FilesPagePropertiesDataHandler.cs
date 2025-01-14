@@ -5,12 +5,10 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.PageProperties.Getters;
 
-public class FilesPagePropertiesDataHandler : PagePropertiesDataHandler
+public class FilesPagePropertiesDataHandler(
+    InvocationContext invocationContext,
+    [ActionParameter] PageFilesPropertyRequest input)
+    : PagePropertiesDataHandler(invocationContext, input.DatabaseId)
 {
     protected override string[] Types => new[] { "files" };
-
-    public FilesPagePropertiesDataHandler(InvocationContext invocationContext,
-        [ActionParameter] PageFilesPropertyRequest input) : base(invocationContext, input.DatabaseId)
-    {
-    }
 }

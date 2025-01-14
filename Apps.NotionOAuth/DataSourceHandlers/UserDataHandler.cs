@@ -8,22 +8,16 @@ using RestSharp;
 
 namespace Apps.NotionOAuth.DataSourceHandlers;
 
-public class UserDataHandler : NotionInvocable, IAsyncDataSourceHandler
+public class UserDataHandler(InvocationContext invocationContext)
+    : NotionInvocable(invocationContext), IAsyncDataSourceItemHandler
 {
-    public UserDataHandler(InvocationContext invocationContext) : base(invocationContext)
-    {
-    }
-
-    public async Task<Dictionary<string, string>> GetDataAsync(DataSourceContext context,
-        CancellationToken cancellationToken)
+    public async Task<IEnumerable<DataSourceItem>> GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
     {
         var request = new NotionRequest(ApiEndpoints.Users, Method.Get, Creds);
         var response = await Client.Paginate<UserResponse>(request);
-
         return response
             .Where(x => context.SearchString is null ||
                         x.Name.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase))
-            .Take(30)
-            .ToDictionary(x => x.Id, x => x.Name);
+            .Select(x => new DataSourceItem(x.Id, x.Name));
     }
 }

@@ -6,20 +6,15 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.NotionOAuth.DataSourceHandlers;
 
-public class PageDataHandler : NotionInvocable, IAsyncDataSourceHandler
+public class PageDataHandler(InvocationContext invocationContext)
+    : NotionInvocable(invocationContext), IAsyncDataSourceItemHandler
 {
-    public PageDataHandler(InvocationContext invocationContext) : base(invocationContext)
-    {
-    }
-
-    public async Task<Dictionary<string, string>> GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
+    public async Task<IEnumerable<DataSourceItem>> GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
     {
         var items = await Client.SearchAll<PageResponse>(Creds, "page", context.SearchString);
-       
         return items
             .Select(x => new PageEntity(x))
             .OrderByDescending(x => x.CreatedTime)
-            .Take(30)
-            .ToDictionary(x => x.Id, x => x.Title);
+            .Select(x =>new DataSourceItem(x.Id, x.Title));
     }
 }

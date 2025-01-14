@@ -5,12 +5,10 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.PageProperties.Getters;
 
-public class MultipleStringPagePropertiesDataHandler : PagePropertiesDataHandler
+public class MultipleStringPagePropertiesDataHandler(
+    InvocationContext invocationContext,
+    [ActionParameter] PageMultipleStringPropertyRequest input)
+    : PagePropertiesDataHandler(invocationContext, input.DatabaseId)
 {
     protected override string[] Types => new[] { "multi_select", "relation", "people" };
-
-    public MultipleStringPagePropertiesDataHandler(InvocationContext invocationContext,
-        [ActionParameter] PageMultipleStringPropertyRequest input) : base(invocationContext, input.DatabaseId)
-    {
-    }
 }

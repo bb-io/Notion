@@ -7,15 +7,15 @@ namespace Apps.NotionOAuth.Models.Request.Page.Properties.Getter;
 
 public class PageNumberPropertyRequest
 {
-    [Display("Database")]
+    [Display("Database ID")]
     [DataSource(typeof(DatabaseDataHandler))]
     public string DatabaseId { get; set; }  
     
-    [Display("Page")]
+    [Display("Page ID")]
     [DataSource(typeof(PageDataHandler))]
     public string PageId { get; set; }
     
-    [Display("Property")]
+    [Display("Property ID")]
     [DataSource(typeof(NumberPagePropertiesDataHandler))]
     public string PropertyId { get; set; }
 }

@@ -5,12 +5,10 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.PageProperties.Getters;
 
-public class BooleanPagePropertiesDataHandler : PagePropertiesDataHandler
+public class BooleanPagePropertiesDataHandler(
+    InvocationContext invocationContext,
+    [ActionParameter] PageBooleanPropertyRequest input)
+    : PagePropertiesDataHandler(invocationContext, input.DatabaseId)
 {
     protected override string[] Types => new[] { "checkbox" };
-
-    public BooleanPagePropertiesDataHandler(InvocationContext invocationContext,
-        [ActionParameter] PageBooleanPropertyRequest input) : base(invocationContext, input.DatabaseId)
-    {
-    }
 }
