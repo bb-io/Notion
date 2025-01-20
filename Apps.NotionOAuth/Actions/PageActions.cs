@@ -343,7 +343,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var payload = property["type"]!.ToString() switch
         {
             "number" => PagePropertyPayloadFactory.GetNumber(input.Value),
-            _ => throw new ArgumentException("Given ID does not stand for a string value property")
+            _ => throw new PluginMisconfigurationException("Given ID does not stand for a string value property")
         };
 
         await UpdatePageProperty(input.PageId, name, payload);
@@ -576,7 +576,12 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var page = await Client.ExecuteWithErrorHandling<PageResponse>(request);
         var property = page.Properties
-            .First(x => x.Value["id"]!.ToString() == propertyId);
+            .FirstOrDefault(x => x.Value["id"]!.ToString() == propertyId);
+
+        if (property.Equals(default(KeyValuePair<string, JObject>)))
+        {
+            throw new PluginMisconfigurationException($"Property with ID '{propertyId}' not found on the page.");
+        }
 
         return (property.Key, property.Value);
     }
