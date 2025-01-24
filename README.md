@@ -68,6 +68,29 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 
 - **On pages created** triggers when new pages are created. To allow Blackbird access to the newly created pages you should do so manually through the page options in Notion
 - **On pages updated** triggers when any pages are updated.
+- **On button clicked** triggers when a user clicks on a button in Notion. See setup instructions below.
+
+## Triggering on button clicked
+
+1. Create a Bird that starts with the event *On button clicked*
+2. Configure the Bird and publish it.
+
+![1737728505623](image/README/1737728505623.png)
+
+3. Copy the Webhook URL at the bottom of the event panel.
+4. Create a button in Notion. You can do this either inside page content or as a page property.
+
+![1737728586269](image/README/1737728586269.png)
+
+5. Click on *Edit automation*. Then click on *+ New action* and select *Send webhook*
+
+![1737728711506](image/README/1737728711506.png)
+
+6. Paste the URL you copied from Blackbird in the URL field and click *Done*.
+
+![1737728748357](image/README/1737728748357.png)
+
+7. Test the button by clicking on the button!
 
 ## HTML Conversion
 
