@@ -2,6 +2,7 @@ using System.Text;
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models;
 using Apps.NotionOAuth.Models.Request.Page;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Utils.Extensions.System;
 using Blackbird.Applications.Sdk.Utils.Html.Extensions;
 using HtmlAgilityPack;
@@ -30,6 +31,7 @@ public static class NotionHtmlParser
 
     private static readonly string[] TextTypes = { "rich_text", "text" };
 
+    // main method
     public static JObject[] ParseHtml(string html)
     {
         var htmlDoc = html.AsHtmlDocument();
@@ -38,12 +40,14 @@ public static class NotionHtmlParser
             .Where(x => x.Name != "#text")
             .ToArray();
         var jObjects = translatableNodes.Select(MapNodeToBlockChild).ToList();
-
+        
         var extractedPageId = ExtractAndNormalizePageId(html);
         var blocksById = jObjects.Where(x => x["id"] != null)
             .ToDictionary(x => NormalizeId(x["id"]!.ToString()));
 
         OrganizeBlocks(jObjects, extractedPageId, blocksById);
+
+        ValidateNotionBlockHierarchy(jObjects);
 
         jObjects.ForEach(RemoveUnnecessaryProperties);
         return jObjects.ToArray();
@@ -341,7 +345,9 @@ public static class NotionHtmlParser
         if (type == "child_page" && objectType == "block")
         {
             var title = jObject["child_page"]!["title"]?.ToString();
-            return string.IsNullOrEmpty(title) ? null : $"<p data-property-id=\"title\" data-property-name=\"title\" data-property-type=\"title\">{title}</p>";
+            return string.IsNullOrEmpty(title)
+                ? null
+                : $"<p data-property-id=\"title\" data-property-name=\"title\" data-property-type=\"title\">{title}</p>";
         }
 
         if (type == null && objectType == "database")
@@ -370,7 +376,7 @@ public static class NotionHtmlParser
             if (properties != null)
             {
                 var html = new StringBuilder();
-                
+
                 foreach (var property in properties)
                 {
                     var propertyName = property.Key;
@@ -388,7 +394,7 @@ public static class NotionHtmlParser
                             {
                                 break;
                             }
-                            
+
                             var richTexts = propertyValue?[propertyType] as JArray;
                             if (richTexts != null)
                             {
@@ -401,6 +407,7 @@ public static class NotionHtmlParser
                                     }
                                 }
                             }
+
                             break;
                     }
 
@@ -622,9 +629,9 @@ public static class NotionHtmlParser
                 if (dataPropertyId != null && dataPropertyName != null && dataPropertyType != null)
                 {
                     var propertyToUpdate = childPageProperties[dataPropertyName] as JObject;
-                    if (propertyToUpdate == null) 
+                    if (propertyToUpdate == null)
                         continue;
-                    
+
                     var type = propertyToUpdate["type"]!.ToString();
                     var typeElement = propertyToUpdate[type]?.ToObject<List<JObject>>()?.FirstOrDefault()
                                       ?? throw new Exception(
@@ -632,12 +639,14 @@ public static class NotionHtmlParser
 
                     var typeOfTextElement = typeElement["type"]!.ToString();
                     typeElement[typeOfTextElement]!["content"] = paragraph.InnerText;
-                    propertyToUpdate[type] = JArray.Parse(JsonConvert.SerializeObject(new List<JObject> { typeElement }, JsonConfig.Settings));
+                    propertyToUpdate[type] =
+                        JArray.Parse(
+                            JsonConvert.SerializeObject(new List<JObject> { typeElement }, JsonConfig.Settings));
                     childPageProperties[dataPropertyName] = propertyToUpdate;
                 }
             }
         }
-        
+
         return childPage;
     }
 
@@ -668,5 +677,90 @@ public static class NotionHtmlParser
         }
 
         return database;
+    }
+
+    private static void ValidateNotionBlockHierarchy(List<JObject> blocks)
+    {
+        foreach (var block in blocks)
+        {
+            ValidateBlockParents(block);
+        }
+    }
+
+    private static void ValidateBlockParents(JObject block)
+    {
+        if (IsDatabaseOrChildPage(block))
+        {
+            var parent = block["parent"] as JObject;
+            var parentType = parent?["type"]?.ToString();
+            if (parentType != "page_id" && parentType != "database_id")
+            {
+                string blockName = GetBlockName(block);
+                throw new PluginApplicationException(
+                    $"Pages and databases cannot be nested inside other blocks. Page or database ('{blockName}') has parent type '{parentType}'. Please move it to the root level.");
+            }
+        }
+
+        if (block.TryGetValue("children", out JToken childrenToken) && childrenToken is JArray children)
+        {
+            foreach (var child in children.OfType<JObject>())
+            {
+                ValidateBlockParents(child);
+            }
+        }
+
+        var type = block["type"]?.ToString();
+        if (!string.IsNullOrEmpty(type) && block[type] is JObject content &&
+            content.TryGetValue("children", out JToken nestedChildren) && nestedChildren is JArray nestedArray)
+        {
+            foreach (var child in nestedArray.OfType<JObject>())
+            {
+                ValidateBlockParents(child);
+            }
+        }
+    }
+    
+    private static string GetBlockName(JObject block)
+    {
+        try
+        {
+            if (string.Equals(block["type"]?.ToString(), "child_page", StringComparison.OrdinalIgnoreCase))
+            {
+                var title = block["child_page"]?["title"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(title))
+                    return title;
+            }
+
+            if (block["object"]?.ToString() == "database" && block["title"] is JArray titleArray && titleArray.Count > 0)
+            {
+                var title = titleArray.First?["plain_text"]?.ToString();
+                if (string.IsNullOrWhiteSpace(title))
+                    title = titleArray.First?["text"]?["content"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(title))
+                    return title;
+            }
+
+            return block["id"]?.ToString() ?? "unknown";
+        }
+        catch (Exception)
+        {
+            return block["id"]?.ToString() ?? "unknown";
+        }
+    }
+
+    private static bool IsDatabaseOrChildPage(JObject block)
+    {
+        var type = block["type"]?.ToString();
+        if (string.Equals(type, "child_page", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        
+        if (block["object"]?.ToString() == "database")
+        {
+            return true;
+        }
+        
+        return false;
     }
 }

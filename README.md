@@ -105,6 +105,10 @@ For now, these types won't be transferred. We are continuously working to improv
 
 > Translating child pages and child databases is fully supported. You can translate child pages and/or child databases by setting the 'Include child pages' and 'Include child databases' optional inputs to true for the 'Get page as HTML' action. If these inputs are not set or are set to false, we will not extract or translate child pages/databases, and the new (or updated) page will not include these child pages/databases.
 
+> Please note that the Notion API only allows creating pages or databases when their parent is a **page or a database**. This means that if you nest a subpage or database inside a column (or any other block), the operation will fail with an error similar to:  
+> `Pages and databases cannot be nested inside other blocks. Page or database ('Page name or ID') has parent type 'block_id'. Please move it to the root level.`  
+> To resolve this issue, ensure that all subpages and sub-databases are placed at the root level and are not nested within other blocks.
+
 ## Feedback  
   
 Do you want to use this app or do you have feedback on our implementation? Reach out to us using the [established channels](https://www.blackbird.io/) or create an issue.

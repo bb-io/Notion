@@ -135,9 +135,12 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
                 page["parent"] = parent;
             }
 
+            RemoveDisallowedGeneratedProperties(page);
+            RemoveStatusProperties(page);
+            
             var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
                 .WithJsonBody(page, JsonConfig.Settings);
-
+            
             var pageResponse = await Client.ExecuteWithErrorHandling<PageResponse>(request);
             if (children.Length > 0)
             {
@@ -163,6 +166,9 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
                            ?? throw new InvalidOperationException("Child database must have children");
             
             database.Remove("children");
+            
+            RemoveGroupsFromProperties(database);
+            FixStatusProperties(database);
 
             var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds)
                 .WithJsonBody(database, JsonConfig.Settings);
@@ -190,6 +196,88 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             if (jObject.TryGetValue(property, out _))
             {
                 jObject.Remove(property);
+            }
+        }
+    }
+    
+    private void RemoveGroupsFromProperties(JObject database)
+    {
+        if (database["properties"] is JObject properties)
+        {
+            foreach (var property in properties.Properties())
+            {
+                if (property.Value is JObject propObj)
+                {
+                    RemoveGroups(propObj);
+                }
+            }
+        }
+    }
+
+    private void RemoveGroups(JObject jObject)
+    {
+        if (jObject.ContainsKey("groups"))
+        {
+            jObject.Remove("groups");
+        }
+
+        foreach (var child in jObject.Properties().Select(p => p.Value).OfType<JObject>().ToList())
+        {
+            RemoveGroups(child);
+        }
+    }
+    
+    // According to Notion documentation: Creating new status database properties is currently not supported. https://developers.notion.com/reference/create-a-database
+    private void FixStatusProperties(JObject database)
+    {
+        if (database["properties"] is JObject properties)
+        {
+            foreach (var property in properties.Properties())
+            {
+                if (property.Value is JObject propObj && (string.Equals((string)propObj["type"], "status",
+                        StringComparison.OrdinalIgnoreCase)))
+                {
+                    if (propObj.TryGetValue("status", out _))
+                    {
+                        propObj.Remove("status");
+                        propObj["status"] = new JObject();
+                    }
+                }
+            }
+        }
+    }
+    
+    private void RemoveDisallowedGeneratedProperties(JObject page)
+    {
+        if (page["properties"] is JObject properties)
+        {
+            var disallowedTypes = new HashSet<string> { "rollup", "created_by", "created_time", "last_edited_by", "last_edited_time" };
+            var propsToRemove = properties.Properties()
+                .Where(prop => prop.Value is JObject propObj &&
+                               propObj.TryGetValue("type", out var typeToken) &&
+                               disallowedTypes.Contains((string)typeToken))
+                .Select(prop => prop.Name)
+                .ToList();
+            foreach (var propName in propsToRemove)
+            {
+                properties.Remove(propName);
+            }
+        }
+    }
+
+    private void RemoveStatusProperties(JObject page)
+    {
+        if (page["properties"] is JObject properties)
+        {
+            var propsToRemove = properties.Properties()
+                .Where(prop => prop.Value is JObject propObj &&
+                               propObj.TryGetValue("type", out var typeToken) &&
+                               string.Equals((string)typeToken, "status", StringComparison.OrdinalIgnoreCase))
+                .Select(prop => prop.Name)
+                .ToList();
+            foreach (var propName in propsToRemove)
+            {
+                properties.Remove(propName);
             }
         }
     }
