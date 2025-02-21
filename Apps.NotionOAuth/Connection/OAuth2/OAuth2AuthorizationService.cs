@@ -6,12 +6,9 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace Apps.NotionOAuth.Connections.OAuth2;
 
-public class OAuth2AuthorizationService : BaseInvocable, IOAuth2AuthorizeService
+public class OAuth2AuthorizationService(InvocationContext invocationContext)
+    : BaseInvocable(invocationContext), IOAuth2AuthorizeService
 {
-    public OAuth2AuthorizationService(InvocationContext invocationContext) : base(invocationContext)
-    {
-    }
-
     public string GetAuthorizationUrl(Dictionary<string, string> values)
     {
         string bridgeOauthUrl = $"{InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/oauth";
