@@ -109,6 +109,18 @@ For now, these types won't be transferred. We are continuously working to improv
 > `Pages and databases cannot be nested inside other blocks. Page or database ('Page name or ID') has parent type 'block_id'. Please move it to the root level.`  
 > To resolve this issue, ensure that all subpages and sub-databases are placed at the root level and are not nested within other blocks.
 
+### Limitation
+
+While improving the Notion app, fixing issues, and enhancing error messages, we identified several API limitations that impact functionality:
+
+1. **Databases with `status` properties cannot be created via the Notion API** ([Reference](https://developers.notion.com/reference/create-a-database)). Additionally, the API does not allow storing status properties in a page. As a result, after recreation, columns of type 'status' will be lost.
+
+2. **Only the table view of a database is accessible via the API.** The API does not differentiate between a board view element and a database, and it does not provide any information about different views within a database. As a result, views cannot be recreated, and only the table view is available.
+
+3. **Pages and databases can only be created under an existing page or database.** The API does not allow placing a subpage or database inside a column or any other block. Subpages and databases must be created directly under a page or database and cannot be nested inside other content blocks ([Reference](https://developers.notion.com/reference/post-page)).
+
+4. **Impossible to re-add Notion hosted files**
+
 ## Feedback  
   
 Do you want to use this app or do you have feedback on our implementation? Reach out to us using the [established channels](https://www.blackbird.io/) or create an issue.
