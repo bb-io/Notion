@@ -20,7 +20,7 @@ namespace Apps.NotionOAuth.Actions;
 [ActionList]
 public class DatabaseActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
-    [Action("List databases", Description = "List all databases")]
+    [Action("Search databases", Description = "Searches databases based on specified parameters")]
     public async Task<ListDatabasesResponse> ListDatabases([ActionParameter] ListRequest input)
     {
         var items = await Client.SearchAll<DatabaseResponse>(Creds, "database");
