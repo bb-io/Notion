@@ -186,7 +186,9 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var response = await GetPageProperty(input.PageId, input.PropertyId);
 
         if (response["results"] is not null)
+        {
             response = response["results"]!.First().ToObject<JObject>()!;
+        }
 
         return new()
         {

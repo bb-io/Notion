@@ -7,7 +7,6 @@ namespace Apps.NotionOAuth.Models.Request.Page.Properties.Getter;
 
 public class PageStringPropertyRequest : StringPropertyRequest
 {
-    [Display("Page")]
-    [DataSource(typeof(PageDataHandler))]
-    public string PageId { get; set; }
+    [Display("Page ID"), DataSource(typeof(PageDataHandler))]
+    public string PageId { get; set; } = string.Empty;
 }
