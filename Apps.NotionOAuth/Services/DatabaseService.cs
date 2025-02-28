@@ -43,8 +43,7 @@ public class DatabaseService(InvocationContext invocationContext)
             }
         };
 
-        const int maxPaginationIterationCount = 1;
-        var response = await _client.PaginateWithBody<PageResponse>(request, bodyDictionary, maxPaginationIterationCount);   
+        var response = await _client.PaginateWithBody<PageResponse>(request, bodyDictionary);   
         var pages = response
             .Select(x => new PageEntity(x))
             .ToList();
