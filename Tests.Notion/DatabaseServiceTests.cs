@@ -20,7 +20,7 @@ public class DatabaseServiceTests : TestBase
     public async Task QueryPagesInDatabase_ValidRequest_ShouldReturnPages()
     {
         // Arrange
-        var expectedStatusPropertyValue = "Closed";
+        var expectedStatusPropertyValue = "Done";
         var queryRequest = new QueryPagesInDatabaseRequest
         {
             DatabaseId = "326459b2780140d98839d4b47d50fceb",

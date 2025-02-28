@@ -64,10 +64,11 @@ public class NotionClient() : BlackBirdRestClient(new()
         return results;
     }
 
-    public async Task<List<T>> PaginateWithBody<T>(RestRequest request, Dictionary<string, object>? body = null)
+    public async Task<List<T>> PaginateWithBody<T>(RestRequest request, Dictionary<string, object>? body = null, int? maxPagesCount = null)
     {
         string? cursor = null;
-
+        int pageCount = 0;
+        
         if (body != null)
         {
             request.AddJsonBody(body);
@@ -93,7 +94,8 @@ public class NotionClient() : BlackBirdRestClient(new()
 
             results.AddRange(response.Results);
             cursor = response.NextCursor;
-        } while (cursor is not null);
+            pageCount++;
+        } while (cursor is not null && (maxPagesCount is null || pageCount < maxPagesCount));
 
         return results;
     }
