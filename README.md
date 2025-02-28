@@ -31,23 +31,23 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
   
 ### Blocks  
   
-- **List block's children** returns all children of a specified block. Instead of block you can input ID of a `Page`, so that it will return all blocks belonging the that page.  
+- **Search block's children** returns all children of a specified block. Instead of block you can input ID of a `Page`, so that it will return all blocks belonging the that page.  
 - **Get/Delete block** 
 
 ### Comments
 
-- **List comments** returns a list of comments added to the specified `Block`.
+- **Search comments** returns a list of comments added to the specified `Block`.
 - **Add comment** adds comment to a specified `Page` or `Discussion`.
 
 ### Databases
 
-- **List databases** returns a list of all databases in the workspace. You can filter the list by create/edited time.
-- **List database records** returns a list of all child `Pages` in the database. You can filter the list by create/edited time. 
+- **Search databases** returns a list of all databases in the workspace. You can filter the list by create/edited time.
+- **Search pages in database** returns a list of all child `Pages` in the database. You can filter the list by create/edited time. 
 - **Create/Get database**
 
 ### Pages
 
-- **List pages** returns a list of all pages in the workspace. You can filter the list by create/edited time.
+- **Search pages** returns a list of all pages in the workspace. You can filter the list by create/edited time.
 - **Get page as HTML** returns specified page's content as an HTML file.
 - **Create/Update page from HTML** creates/updates a page from an HTML file. We recommend using the 'Create page from HTML' action, as it doesn't affect existing content. On the other hand, the 'Update page from HTML' action does affect existing content. Since Notion doesn't allow updating blocks directly, it will first delete all the content of the page and then add it from the HTML file.
 - **Get page string/number/date/boolean/files/multiple property** returns the value of a database entry's property of specific type.
@@ -59,15 +59,16 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 
 ### Users
 
-- **List users** returns a list of users belonging to the workspace.
+- **Search users** returns a list of users belonging to the workspace.
 - **Get users** returns details about specified user.
 
 ## Events
 
 ### Pages
 
-- **On pages created** triggers when new pages are created. To allow Blackbird access to the newly created pages you should do so manually through the page options in Notion
-- **On pages updated** triggers when any pages are updated.
+- **On pages created** Monitors pages whose has created within a specified time range. To allow Blackbird access to the newly created pages you should do so manually through the page options in Notion
+- **On pages updated** Monitors pages whose has updated within a specified time range.
+- **On pages status changed** Monitors a database for pages whose status has changed to the desired value within a specified time range.
 - **On button clicked** triggers when a user clicks on a button in Notion. See setup instructions below.
 
 ## Triggering on button clicked

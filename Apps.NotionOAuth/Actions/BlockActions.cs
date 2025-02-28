@@ -1,6 +1,5 @@
 using Apps.NotionOAuth.Api;
 using Apps.NotionOAuth.Constants;
-using Apps.NotionOAuth.Extensions;
 using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.Models.Request.Block;
@@ -28,11 +27,10 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         var request = new NotionRequest(endpoint, Method.Get, Creds);
 
         var response = await Client.ExecuteWithErrorHandling<BlockResponse>(request);
-        var response2 = await Client.ExecuteWithErrorHandling(request);
         return new(response);
     }
 
-    [Action("List block children", Description = "List children of a specific block")]
+    [Action("Search block children", Description = "List children of a specific block")]
     public async Task<ListBlockChildrenResponse> ListBlockChildren([ActionParameter] BlockRequest input)
     {
         var endpoint = $"{ApiEndpoints.Blocks}/{input.BlockId}/children";

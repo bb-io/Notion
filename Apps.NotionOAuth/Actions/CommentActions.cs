@@ -17,7 +17,7 @@ namespace Apps.NotionOAuth.Actions;
 [ActionList]
 public class CommentActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
-    [Action("List comments", Description = "List all block comments")]
+    [Action("Search comments", Description = "List all block comments")]
     public async Task<ListCommentsResponse> ListComments([ActionParameter] BlockRequest input)
     {
         var endpoint = ApiEndpoints.Comments.SetQueryParameter("block_id", input.BlockId);

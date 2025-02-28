@@ -32,7 +32,7 @@ namespace Apps.NotionOAuth.Actions;
 public class PageActions(InvocationContext invocationContext, IFileManagementClient fileManagementClient)
     : NotionInvocable(invocationContext)
 {
-    [Action("List pages", Description = "List all pages")]
+    [Action("Search pages", Description = "Search pages based on specified criteria")]
     public async Task<ListPagesResponse> ListPages([ActionParameter] ListRequest input)
     {
         var items = await Client.SearchAll<PageResponse>(Creds, "page");

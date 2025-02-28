@@ -14,7 +14,7 @@ namespace Apps.NotionOAuth.Actions;
 [ActionList]
 public class UserActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
-    [Action("List users", Description = "List all users")]
+    [Action("Search users", Description = "Search all users")]
     public async Task<ListUsersResponse> ListUsers()
     {
         var request = new NotionRequest(ApiEndpoints.Users, Method.Get, Creds);

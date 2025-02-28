@@ -10,15 +10,19 @@ public class PropertyResponse
     
     public string Type { get; set; }
 
+    public string Value { get; set; }
+
     public PropertyResponse()
-    {
-        
-    }
+    { }
 
     public PropertyResponse(KeyValuePair<string, JObject> pair)
     {
+        Id = pair.Value["id"]!.ToString();
         Name = pair.Key;
         Type = pair.Value["type"]!.ToString();
-        Id = pair.Value["id"]!.ToString();
+        if (pair.Value[Type] is JObject typeObject && typeObject["name"] != null)
+        {
+            Value = typeObject["name"]?.ToString() ?? string.Empty;
+        }
     }
 }
