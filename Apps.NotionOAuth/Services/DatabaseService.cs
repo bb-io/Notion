@@ -32,10 +32,19 @@ public class DatabaseService(InvocationContext invocationContext)
                 {
                     equals = queryRequest.StatusPropertyValue
                 }
+            },
+            ["sorts"] = new List<object>
+            {
+               new
+               {
+                   timestamp = "last_edited_time",
+                   direction = "descending"
+               }
             }
         };
 
-        var response = await _client.PaginateWithBody<PageResponse>(request, bodyDictionary);   
+        const int maxPaginationIterationCount = 1;
+        var response = await _client.PaginateWithBody<PageResponse>(request, bodyDictionary, maxPaginationIterationCount);   
         var pages = response
             .Select(x => new PageEntity(x))
             .ToList();
