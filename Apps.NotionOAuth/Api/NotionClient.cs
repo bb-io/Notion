@@ -20,8 +20,27 @@ public class NotionClient() : BlackBirdRestClient(new()
 
     protected override Exception ConfigureErrorException(RestResponse response)
     {
-        var error = JsonConvert.DeserializeObject<ErrorResponse>(response.Content!)!;
-        return new PluginApplicationException(error.Message);
+        try
+        {
+            var error = JsonConvert.DeserializeObject<ErrorResponse>(response.Content!, JsonSettings);
+            if (error == null)
+            {
+                throw new Exception($"Could not parse {response.Content} to {typeof(ErrorResponse)}");
+            }
+            return new PluginApplicationException(error.Message);
+        }
+        catch (JsonReaderException ex)
+        {
+            throw new Exception($"Error reading JSON: {ex.Message} Content: {response.Content}", ex);
+        }
+        catch (JsonSerializationException ex)
+        {
+            throw new Exception($"Error deserializing JSON: {ex.Message} Content: {response.Content}", ex);
+        }
+        catch (ArgumentNullException ex)
+        {
+            throw new Exception($"Input JSON string is null: {ex.Message}", ex);
+        }
     }
 
     public async Task<List<T>> SearchAll<T>(AuthenticationCredentialsProvider[] creds, string type, string? query = null)
@@ -98,5 +117,41 @@ public class NotionClient() : BlackBirdRestClient(new()
         } while (cursor is not null && (maxPagesCount is null || pageCount < maxPagesCount));
 
         return results;
+    }
+    public virtual async Task<RestResponse> ExecuteWithErrorHandling(RestRequest request)
+    {
+        RestResponse restResponse = await ExecuteAsync(request);
+        if (!restResponse.IsSuccessStatusCode)
+        {
+            throw ConfigureErrorException(restResponse);
+        }
+
+        return restResponse;
+    }
+
+    public virtual async Task<T> ExecuteWithErrorHandling<T>(RestRequest request)
+    {
+        string content = (await ExecuteWithErrorHandling(request)).Content;
+        try
+        {
+            T val = JsonConvert.DeserializeObject<T>(content, JsonSettings);
+            if (val == null)
+            {
+                throw new Exception($"Could not parse {content} to {typeof(T)}");
+            }
+            return val;
+        }
+        catch (JsonReaderException ex)
+        {
+            throw new Exception($"Error reading JSON: {ex.Message} Content: {content}", ex);
+        }
+        catch (JsonSerializationException ex)
+        {
+            throw new Exception($"Error deserializing JSON: {ex.Message} Content: {content}", ex);
+        }
+        catch (ArgumentNullException ex)
+        {
+            throw new Exception($"Input JSON string is null: {ex.Message}", ex);
+        }
     }
 }
