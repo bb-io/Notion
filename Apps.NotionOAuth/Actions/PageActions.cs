@@ -185,9 +185,13 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     {
         var response = await GetPageProperty(input.PageId, input.PropertyId);
 
-        if (response["results"] is not null)
+        if (response["results"] is not null && response["results"].Any())
         {
-            response = response["results"]!.First().ToObject<JObject>()!;
+            response = response["results"].First().ToObject<JObject>()!;
+        }
+        else
+        {
+            throw new PluginApplicationException("Results collection has no elements. Please check your inputs and try again");
         }
 
         return new()
