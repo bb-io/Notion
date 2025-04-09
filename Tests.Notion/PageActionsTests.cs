@@ -5,10 +5,10 @@ using Tests.Notion.Base;
 namespace Tests.Notion;
 
 [TestClass]
-public class PageTests :TestBase
+public class PageActionsTests :TestBase
 {
     [TestMethod]
-    public async Task GetPage_ValidPageId_ShouldReturnPage()
+    public async Task GetStringProperty_ValidParameters_ShouldReturnProperty()
     {
         // Arrange
         var pageId = "1b5efdee-ad05-8100-90af-f0471933c5e6";
@@ -22,9 +22,9 @@ public class PageTests :TestBase
 
         // Act
         var page = await action.GetStringProperty(input);
-        
+
         // Assert
         Assert.IsNotNull(page);
-        Console.WriteLine($"Page Title: {page.PropertyValue}");
+        Console.WriteLine($"String property: {page.PropertyValue}");
     }
 }
