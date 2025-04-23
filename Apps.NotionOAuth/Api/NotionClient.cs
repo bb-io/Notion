@@ -119,7 +119,7 @@ public class NotionClient() : BlackBirdRestClient(new()
 
         return results;
     }
-    public virtual async Task<RestResponse> ExecuteWithErrorHandling(RestRequest request)
+    public override async Task<RestResponse> ExecuteWithErrorHandling(RestRequest request)
     {
         RestResponse restResponse = await ExecuteAsync(request);
         if (!restResponse.IsSuccessStatusCode)
@@ -130,29 +130,15 @@ public class NotionClient() : BlackBirdRestClient(new()
         return restResponse;
     }
 
-    public virtual async Task<T> ExecuteWithErrorHandling<T>(RestRequest request)
+    public override async Task<T> ExecuteWithErrorHandling<T>(RestRequest request)
     {
         string content = (await ExecuteWithErrorHandling(request)).Content;
-        try
+
+        T val = JsonConvert.DeserializeObject<T>(content, JsonSettings);
+        if (val == null)
         {
-            T val = JsonConvert.DeserializeObject<T>(content, JsonSettings);
-            if (val == null)
-            {
-                throw new PluginApplicationException($"Could not parse {content} to {typeof(T)}");
-            }
-            return val;
+            throw new PluginApplicationException($"Could not parse {content} to {typeof(T)}");
         }
-        catch (JsonReaderException ex)
-        {
-            throw new Exception($"Error reading JSON: {ex.Message} Content: {content}", ex);
-        }
-        catch (JsonSerializationException ex)
-        {
-            throw new Exception($"Error deserializing JSON: {ex.Message} Content: {content}", ex);
-        }
-        catch (ArgumentNullException ex)
-        {
-            throw new Exception($"Input JSON string is null: {ex.Message}", ex);
-        }
+        return val;
     }
 }
