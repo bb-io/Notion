@@ -13,7 +13,8 @@ namespace Apps.NotionOAuth.Api;
 
 public class NotionClient() : BlackBirdRestClient(new()
 {
-    BaseUrl = Urls.Api.ToUri()
+    BaseUrl = Urls.Api.ToUri(),
+    MaxTimeout = 180000
 })
 {
     protected override JsonSerializerSettings? JsonSettings => JsonConfig.Settings;
@@ -22,24 +23,24 @@ public class NotionClient() : BlackBirdRestClient(new()
     {
         try
         {
+            if (!string.IsNullOrEmpty(response.Content) &&
+                response.Content.Trim().Contains("<html", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new PluginApplicationException($"Returned HTML content instead of JSON: {response.Content}");
+            }
+
             var error = JsonConvert.DeserializeObject<ErrorResponse>(response.Content!, JsonSettings);
             if (error == null)
             {
-                throw new Exception($"Could not parse {response.Content} to {typeof(ErrorResponse)}");
+                throw new PluginApplicationException($"Could not parse {response.Content} to {typeof(ErrorResponse)}");
             }
             return new PluginApplicationException(error.Message);
         }
-        catch (JsonReaderException ex)
+        catch (Exception ex) when (ex is JsonReaderException ||
+                                ex is JsonSerializationException ||
+                                ex is ArgumentNullException)
         {
-            throw new Exception($"Error reading JSON: {ex.Message} Content: {response.Content}", ex);
-        }
-        catch (JsonSerializationException ex)
-        {
-            throw new Exception($"Error deserializing JSON: {ex.Message} Content: {response.Content}", ex);
-        }
-        catch (ArgumentNullException ex)
-        {
-            throw new Exception($"Input JSON string is null: {ex.Message}", ex);
+            throw new PluginApplicationException($"Failed to process server response: {ex.Message} Content: {response.Content}");
         }
     }
 
@@ -137,7 +138,7 @@ public class NotionClient() : BlackBirdRestClient(new()
             T val = JsonConvert.DeserializeObject<T>(content, JsonSettings);
             if (val == null)
             {
-                throw new Exception($"Could not parse {content} to {typeof(T)}");
+                throw new PluginApplicationException($"Could not parse {content} to {typeof(T)}");
             }
             return val;
         }
