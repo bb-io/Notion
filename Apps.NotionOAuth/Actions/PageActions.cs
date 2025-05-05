@@ -49,10 +49,10 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     public async Task<PageEntity> CreatePage([ActionParameter] CreatePageInput input)
     {
         if (input.PageId is not null && input.DatabaseId is not null)
-            throw new("Page cannot have two parents, you should specify either parent page or parent database");
+            throw new PluginMisconfigurationException("Page cannot have two parents, you should specify either parent page or parent database");
 
         if (input.PageId is null && input.DatabaseId is null)
-            throw new("Page must have a parent, you should specify either parent page or parent database");
+            throw new PluginMisconfigurationException("Page must have a parent, you should specify either parent page or parent database");
 
         var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
             .WithJsonBody(new CreatePageRequest(input), JsonConfig.Settings);
