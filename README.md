@@ -122,6 +122,10 @@ While improving the Notion app, fixing issues, and enhancing error messages, we 
 
 4. **Impossible to re-add Notion hosted files**
 
+5. **Nesting depth limited to 2 levels.** The Notion API restricts block nesting to a maximum depth of 2 levels. If the original page has blocks with more than 2 nested children, the 'Create/Update page from HTML' action will fail with a validation error. See the [API reference](https://developers.notion.com/reference/patch-block-children) for more details.
+
+6. **UI vs API feature parity issues.** Blocks created via the API may render differently than those created through the UI. For example, bookmarks might lose cover images and descriptions, and code blocks might lose syntax highlighting. This occurs because the Notion API doesn't support all features available in the UI.
+
 ## Feedback  
   
 Do you want to use this app or do you have feedback on our implementation? Reach out to us using the [established channels](https://www.blackbird.io/) or create an issue.

@@ -585,8 +585,34 @@ public static class NotionHtmlParser
 
         for (int i = 0; i < cells.Length; i++)
         {
-            tableCells[i][0]["text"]!["content"] = cells[i];
-            tableCells[i][0]["plain_text"] = cells[i];
+            if (i < tableCells.Count && tableCells[i].Count > 0)
+            {
+                var firstCell = tableCells[i][0];
+
+                // Update the annotated text content
+                firstCell["text"]!["content"] = cells[i];
+                firstCell["plain_text"] = cells[i];
+            }
+            else
+            {
+                // —Optionally— insert a new “empty” cell instead of skipping:
+                // var newCell = new JObject
+                // {
+                //     ["type"] = "text",
+                //     ["text"] = new JObject { ["content"] = cells[i], ["link"] = null },
+                //     ["annotations"] = new JObject {
+                //         ["bold"] = false, ["italic"] = false,
+                //         ["strikethrough"] = false, ["underline"] = false,
+                //         ["code"] = false, ["color"] = "default"
+                //     },
+                //     ["plain_text"] = cells[i],
+                //     ["href"] = null
+                // };
+                // tableCells.Insert(i, new List<JObject> { newCell });
+
+                // For now, we simply skip empty JSON cells to avoid the exception
+                continue;
+            }
         }
 
         tableRow["table_row"]!["cells"] = JArray.FromObject(tableCells);
