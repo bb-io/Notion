@@ -1,5 +1,8 @@
 ﻿using Apps.NotionOAuth.Actions;
+using Apps.NotionOAuth.Models.Request;
+using Apps.NotionOAuth.Models.Request.Page;
 using Apps.NotionOAuth.Models.Request.Page.Properties.Getter;
+using Blackbird.Applications.Sdk.Common.Files;
 using Tests.Notion.Base;
 
 namespace Tests.Notion;
@@ -26,5 +29,58 @@ public class PageActionsTests :TestBase
         // Assert
         Assert.IsNotNull(page);
         Console.WriteLine($"String property: {page.PropertyValue}");
+    }
+
+    [TestMethod]
+    public async Task GetPageAsHtml_ValidParameters_ShouldReturnHtmlFile()
+    {
+        // Arrange
+        var pageId = "21ca9644cf0280e19666c5bbbf0a7e8a";
+        var action = new PageActions(InvocationContext, FileManager);
+        var pageRequest = new PageRequest
+        {
+            PageId = pageId
+        };
+        var htmlRequest = new GetPageAsHtmlRequest();
+
+        // Act
+        var result = await action.GetPageAsHtml(pageRequest, htmlRequest);
+
+        // Assert
+        Assert.IsNotNull(result);
+        Assert.IsNotNull(result.File);
+        Console.WriteLine($"HTML file name: {result.File.Name}, Size: {result.File.Size} bytes");
+    }
+
+    [TestMethod]
+    public async Task CreatePageFromHtml_ValidParameters_ShouldCreatePage()
+    {
+        // Arrange
+        var pageId = "142a9644-cf02-80ca-a899-cf74abef21ec";
+        var htmlFileName = "21ca9644cf0280e19666c5bbbf0a7e8a.html";
+        var action = new PageActions(InvocationContext, FileManager);
+        
+        var pageRequest = new CreatePageInput
+        {
+            PageId = pageId,
+            Title = $"Test page: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+        };
+        
+        // Create a mock file reference
+        var file = new FileReference
+        {
+            Name = htmlFileName,
+            ContentType = "text/html"
+        };
+        
+        var fileRequest = new FileRequest
+        {
+            File = file
+        };
+
+        // Act & Assert
+        await action.CreatePageFromHtml(pageRequest, fileRequest);
+        Console.WriteLine($"Successfully updated page {pageId} with HTML from {htmlFileName}");
+        Assert.IsTrue(true); // Test passes if no exception is thrown
     }
 }

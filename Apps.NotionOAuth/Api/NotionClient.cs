@@ -34,6 +34,7 @@ public class NotionClient() : BlackBirdRestClient(new()
             {
                 throw new PluginApplicationException($"Could not parse {response.Content} to {typeof(ErrorResponse)}");
             }
+            
             return new PluginApplicationException(error.Message);
         }
         catch (Exception ex) when (ex is JsonReaderException ||
