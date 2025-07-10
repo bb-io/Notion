@@ -57,7 +57,7 @@ public static class NotionHtmlParser
     {
         var extractedPageId = ExtractPageId(html);
         if (string.IsNullOrEmpty(extractedPageId))
-            throw new Exception("Page ID not found in HTML");
+            throw new PluginMisconfigurationException("Page ID not found in HTML");
         return NormalizeId(extractedPageId);
     }
 
@@ -80,7 +80,7 @@ public static class NotionHtmlParser
                     }
                     else
                     {
-                        throw new Exception($"Parent block with ID {parentId} not found");
+                        throw new PluginMisconfigurationException($"Parent block with ID {parentId} not found");
                     }
                 }
             }
