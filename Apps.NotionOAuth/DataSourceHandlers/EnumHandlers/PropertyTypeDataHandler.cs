@@ -1,3 +1,4 @@
+using Apps.NotionOAuth.Constants;
 using Blackbird.Applications.Sdk.Common.Dictionaries;
 using Blackbird.Applications.Sdk.Common.Dynamic;
 
@@ -7,25 +8,25 @@ public class PropertyTypeDataHandler : IStaticDataSourceItemHandler
 {
     private static Dictionary<string, string> Data => new()
     {
-        { "title", "Title" },
-        { "rich_text", "Rich text" },
-        { "number", "Number" },
-        { "select", "Select" },
-        { "multi_select", "Multi-Select" },
-        { "date", "Date" },
-        { "people", "People" },
-        { "files", "Files" },
-        { "checkbox", "Checkbox" },
-        { "url", "URL" },
-        { "email", "Email" },
-        { "phone_number", "Phone number" },
-        { "formula", "Formula" },
-        { "relation", "Relation" },
-        { "rollup", "Rollup" },
-        { "created_time", "Created time" },
-        { "created_by", "Created by" },
-        { "last_edited_time", "Last edited time" },
-        { "last_edited_by", "Last edited by" }
+        { DatabasePropertyTypes.Title, "Title" },
+        { DatabasePropertyTypes.RichText, "Rich text" },
+        { DatabasePropertyTypes.Number, "Number" },
+        { DatabasePropertyTypes.Select, "Select" },
+        { DatabasePropertyTypes.MultiSelect, "Multi-Select" },
+        { DatabasePropertyTypes.Date, "Date" },
+        { DatabasePropertyTypes.People, "People" },
+        { DatabasePropertyTypes.Files, "Files" },
+        { DatabasePropertyTypes.Checkbox, "Checkbox" },
+        { DatabasePropertyTypes.Url, "URL" },
+        { DatabasePropertyTypes.Email, "Email" },
+        { DatabasePropertyTypes.PhoneNumber, "Phone number" },
+        { DatabasePropertyTypes.Formula, "Formula" },
+        { DatabasePropertyTypes.Relation, "Relation" },
+        { DatabasePropertyTypes.Rollup, "Rollup" },
+        { DatabasePropertyTypes.CreatedTime, "Created time" },
+        { DatabasePropertyTypes.CreatedBy, "Created by" },
+        { DatabasePropertyTypes.LastEditedTime, "Last edited time" },
+        { DatabasePropertyTypes.LastEditedBy, "Last edited by" }
     };
     
     public IEnumerable<DataSourceItem> GetData()

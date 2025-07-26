@@ -1,4 +1,5 @@
-﻿using Apps.NotionOAuth.Models.Entities;
+﻿using Apps.NotionOAuth.Constants;
+using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.PollingEvents.Models.Requests;
 using Apps.NotionOAuth.Services;
 using Blackbird.Applications.Sdk.Common.Exceptions;
@@ -25,7 +26,7 @@ public class DatabaseServiceTests : TestBase
         {
             DatabaseId = "326459b2780140d98839d4b47d50fceb",
             StatusPropertyName = "Status",
-            StatusPropertyType = "select",
+            StatusPropertyType = DatabasePropertyTypes.Select,
             StatusPropertyValue = expectedStatusPropertyValue
         };
 
@@ -53,7 +54,7 @@ public class DatabaseServiceTests : TestBase
         {
             DatabaseId = "", // Invalid input
             StatusPropertyName = "Status",
-            StatusPropertyType = "select",
+            StatusPropertyType = DatabasePropertyTypes.Select,
             StatusPropertyValue = "Active"
         };
 
@@ -69,7 +70,7 @@ public class DatabaseServiceTests : TestBase
         {
             DatabaseId = "valid_database_id",
             StatusPropertyName = "", // Invalid input
-            StatusPropertyType = "select",
+            StatusPropertyType = DatabasePropertyTypes.Select,
             StatusPropertyValue = "Active"
         };
 
@@ -101,7 +102,7 @@ public class DatabaseServiceTests : TestBase
         {
             DatabaseId = "valid_database_id",
             StatusPropertyName = "Status",
-            StatusPropertyType = "select",
+            StatusPropertyType = DatabasePropertyTypes.Select,
             StatusPropertyValue = "" // Invalid input
         };
 

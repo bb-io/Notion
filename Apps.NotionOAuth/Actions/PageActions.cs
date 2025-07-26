@@ -28,7 +28,7 @@ using Newtonsoft.Json;
 
 namespace Apps.NotionOAuth.Actions;
 
-[ActionList]
+[ActionList("Pages")]
 public class PageActions(InvocationContext invocationContext, IFileManagementClient fileManagementClient)
     : NotionInvocable(invocationContext)
 {
@@ -203,8 +203,8 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var value = response["type"]!.ToString() switch
         {
-            "number" => response["number"]!.ToObject<decimal>(),
-            "unique_id" => response["unique_id"]!["number"]!.ToObject<decimal>(),
+            DatabasePropertyTypes.Number => response["number"]!.ToObject<decimal>(),
+            DatabasePropertyTypes.UniqueId => response["unique_id"]!["number"]!.ToObject<decimal>(),
             _ => throw new ArgumentException("Given ID does not stand for a number value property")
         };
 
@@ -221,9 +221,9 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var value = response["type"]!.ToString() switch
         {
-            "created_time" => response["created_time"]!.ToObject<DateTime>(),
-            "date" => response["date"]!["start"]!.ToObject<DateTime>(),
-            "last_edited_time" => response["last_edited_time"]!.ToObject<DateTime>(),
+            DatabasePropertyTypes.CreatedTime => response["created_time"]!.ToObject<DateTime>(),
+            DatabasePropertyTypes.Date => response["date"]!["start"]!.ToObject<DateTime>(),
+            DatabasePropertyTypes.LastEditedTime => response["last_edited_time"]!.ToObject<DateTime>(),
             _ => throw new ArgumentException("Given ID does not stand for a date value property")
         };
 
@@ -240,7 +240,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var value = response["type"]!.ToString() switch
         {
-            "checkbox" => response["checkbox"]!.ToObject<bool>(),
+            DatabasePropertyTypes.Checkbox => response["checkbox"]!.ToObject<bool>(),
             _ => throw new ArgumentException("Given ID does not stand for a date value property")
         };
 
@@ -257,7 +257,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var value = response["type"]!.ToString() switch
         {
-            "files" => response["files"]!
+            DatabasePropertyTypes.Files => response["files"]!
                 .Select(x => x["file"]?["url"]!.ToString() ?? x["external"]!["url"]!.ToString()).ToArray(),
             _ => throw new ArgumentException("Given ID does not stand for a date value property")
         };
@@ -285,9 +285,9 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
             var value = propertyType switch
             {
-                "multi_select" => response["multi_select"]!.Select(x => x["name"]!.ToString()),
-                "relation" => response["results"]!.Select(x => x["relation"]!["id"]!.ToString()),
-                "people" => response["results"]!.Select(x => x["people"]!["id"]!.ToString()),
+                DatabasePropertyTypes.MultiSelect => response["multi_select"]!.Select(x => x["name"]!.ToString()),
+                DatabasePropertyTypes.Relation => response["results"]!.Select(x => x["relation"]!["id"]!.ToString()),
+                DatabasePropertyTypes.People => response["results"]!.Select(x => x["people"]!["id"]!.ToString()),
                 _ => throw new ArgumentException("Given ID does not stand for a multi select")
             };
 
@@ -302,6 +302,20 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         }
     }
 
+    [Action("Get pages related by property", Description = "Get related pages from a page's property")]
+    public async Task<ListPagesResponse> GetRelatedPagesFromProperty(
+        [ActionParameter] PageRelationPropertyRequest input)
+    {
+        JObject response = await GetPageProperty(input.PageId, input.PropertyId);
+
+        var relatedPagesTasks = response["results"]?
+            .Select(x => x["relation"]?["id"]?.Value<string>() ?? string.Empty)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Select(id => GetPage(new() { PageId = id })) ?? [];
+
+        return new(await Task.WhenAll(relatedPagesTasks));
+    }
+
     #endregion
 
     #region Setters
@@ -313,14 +327,14 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var payload = property["type"]!.ToString() switch
         {
-            "url" => PagePropertyPayloadFactory.GetUrl(input.Value),
-            "title" => PagePropertyPayloadFactory.GetTitle(input.Value),
-            "email" => PagePropertyPayloadFactory.GetEmail(input.Value),
-            "phone_number" => PagePropertyPayloadFactory.GetPhone(input.Value),
-            "status" => PagePropertyPayloadFactory.GetStatus(input.Value),
-            "select" => PagePropertyPayloadFactory.GetSelect(input.Value),
-            "rich_text" => PagePropertyPayloadFactory.GetRichText(input.Value),
-            "relation" => PagePropertyPayloadFactory.GetRelation(input.Value),
+            DatabasePropertyTypes.Url => PagePropertyPayloadFactory.GetUrl(input.Value),
+            DatabasePropertyTypes.Title => PagePropertyPayloadFactory.GetTitle(input.Value),
+            DatabasePropertyTypes.Email => PagePropertyPayloadFactory.GetEmail(input.Value),
+            DatabasePropertyTypes.PhoneNumber => PagePropertyPayloadFactory.GetPhone(input.Value),
+            DatabasePropertyTypes.Status => PagePropertyPayloadFactory.GetStatus(input.Value),
+            DatabasePropertyTypes.Select => PagePropertyPayloadFactory.GetSelect(input.Value),
+            DatabasePropertyTypes.RichText => PagePropertyPayloadFactory.GetRichText(input.Value),
+            DatabasePropertyTypes.Relation => PagePropertyPayloadFactory.GetRelation(input.Value),
             _ => throw new ArgumentException("Given ID does not stand for a string value property")
         };
 
@@ -344,7 +358,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var payload = property["type"]!.ToString() switch
         {
-            "number" => PagePropertyPayloadFactory.GetNumber(input.Value),
+            DatabasePropertyTypes.Number => PagePropertyPayloadFactory.GetNumber(input.Value),
             _ => throw new PluginMisconfigurationException("Given ID does not stand for a string value property")
         };
 
@@ -358,7 +372,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var payload = property["type"]!.ToString() switch
         {
-            "checkbox" => PagePropertyPayloadFactory.GetCheckbox(input.Value),
+            DatabasePropertyTypes.Checkbox => PagePropertyPayloadFactory.GetCheckbox(input.Value),
             _ => throw new ArgumentException("Given ID does not stand for a string value property")
         };
 
@@ -380,9 +394,9 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var payload = property["type"]!.ToString() switch
         {
-            "multi_select" => PagePropertyPayloadFactory.GetMultiSelect(newValues),
-            "relation" => PagePropertyPayloadFactory.GetRelation(newValues),
-            "people" => PagePropertyPayloadFactory.GetPeople(newValues),
+            DatabasePropertyTypes.MultiSelect => PagePropertyPayloadFactory.GetMultiSelect(newValues),
+            DatabasePropertyTypes.Relation => PagePropertyPayloadFactory.GetRelation(newValues),
+            DatabasePropertyTypes.People => PagePropertyPayloadFactory.GetPeople(newValues),
             _ => throw new ArgumentException("Given ID does not stand for a string value property")
         };
 
@@ -396,7 +410,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var payload = property["type"]!.ToString() switch
         {
-            "files" => PagePropertyPayloadFactory.GetFiles(input.Values),
+            DatabasePropertyTypes.Files => PagePropertyPayloadFactory.GetFiles(input.Values),
             _ => throw new ArgumentException("Given ID does not stand for a string value property")
         };
 
@@ -410,8 +424,22 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var payload = property["type"]!.ToString() switch
         {
-            "date" => PagePropertyPayloadFactory.GetDate(input.Date, input.EndDate, input.IncludeTime),
+            DatabasePropertyTypes.Date => PagePropertyPayloadFactory.GetDate(input.Date, input.EndDate, input.IncludeTime),
             _ => throw new ArgumentException("Given ID does not stand for a date value property")
+        };
+
+        await UpdatePageProperty(input.PageId, name, payload);
+    }
+
+    [Action("Set page relation property", Description = "Set new value of a relation page property")]
+    public async Task SetRelationProperty([ActionParameter] SetPageRelationPropertyRequest input)
+    {
+        var (name, property) = await GetPagePropertyWithName(input.PageId, input.PropertyId);
+
+        var payload = property["type"]!.ToString() switch
+        {
+            DatabasePropertyTypes.Relation => PagePropertyPayloadFactory.GetRelation(input.RelatedPageIds),
+            _ => throw new PluginMisconfigurationException("Given field ID does not stand for a relation property.")
         };
 
         await UpdatePageProperty(input.PageId, name, payload);
@@ -424,19 +452,19 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var payload = property["type"]!.ToString() switch
         {
-            "phone_number" => new JObject { { "phone_number", null } },
-            "email" => new JObject { { "email", null } },
-            "url" => new JObject { { "url", null } },
-            "number" => new JObject { { "number", null } },
-            "status" => new JObject { { "status", null } },
-            "select" => new JObject { { "select", null } },
-            "checkbox" => new JObject { { "checkbox", "false" } },
-            "multi_select" => new JObject { { "multi_select", new JArray() } },
-            "rich_text" => new JObject { { "rich_text", new JArray() } },
-            "files" => new JObject { { "files", new JArray() } },
-            "relation" => new JObject { { "relation", new JArray() } },
-            "people" => new JObject { { "people", new JArray() } },
-            _ => throw new ArgumentException("Property cannot be updated")
+            DatabasePropertyTypes.PhoneNumber => new JObject { { "phone_number", null } },
+            DatabasePropertyTypes.Email => new JObject { { "email", null } },
+            DatabasePropertyTypes.Url => new JObject { { "url", null } },
+            DatabasePropertyTypes.Number => new JObject { { "number", null } },
+            DatabasePropertyTypes.Status => new JObject { { "status", null } },
+            DatabasePropertyTypes.Select => new JObject { { "select", null } },
+            DatabasePropertyTypes.Checkbox => new JObject { { "checkbox", "false" } },
+            DatabasePropertyTypes.MultiSelect => new JObject { { "multi_select", new JArray() } },
+            DatabasePropertyTypes.RichText => new JObject { { "rich_text", new JArray() } },
+            DatabasePropertyTypes.Files => new JObject { { "files", new JArray() } },
+            DatabasePropertyTypes.Relation => new JObject { { "relation", new JArray() } },
+            DatabasePropertyTypes.People => new JObject { { "people", new JArray() } },
+            _ => throw new PluginMisconfigurationException("Property type is not recognized")
         };
 
         await UpdatePageProperty(input.PageId, name, payload);

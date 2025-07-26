@@ -1,3 +1,4 @@
+using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models.Entities;
 
 namespace Apps.NotionOAuth.Models.Request.Page;
@@ -19,10 +20,10 @@ public class CreatePageRequest
 
         Properties = new()
         {
-            ["title"] = new()
+            [DatabasePropertyTypes.Title] = new()
             {
                 {
-                    "title",
+                    DatabasePropertyTypes.Title,
                     new[]
                     {
                         new TitleModel()

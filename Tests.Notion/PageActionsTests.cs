@@ -2,6 +2,7 @@
 using Apps.NotionOAuth.Models.Request;
 using Apps.NotionOAuth.Models.Request.Page;
 using Apps.NotionOAuth.Models.Request.Page.Properties.Getter;
+using Apps.NotionOAuth.Models.Request.Page.Properties.Setter;
 using Blackbird.Applications.Sdk.Common.Files;
 using Tests.Notion.Base;
 
@@ -29,6 +30,54 @@ public class PageActionsTests :TestBase
         // Assert
         Assert.IsNotNull(page);
         Console.WriteLine($"String property: {page.PropertyValue}");
+    }
+
+    [TestMethod]
+    public async Task GetRelatedPagesFromProperty_works()
+    {
+        // Arrange
+        var action = new PageActions(InvocationContext, FileManager);
+        var input = new PageRelationPropertyRequest
+        {
+            DatabaseId = "36187e6f-6a33-4648-b9a9-4fde6c9e19f1",
+            PageId = "23ba9644-cf02-8154-b2da-fb752c12371b",
+            PropertyId = "w%3BQV"
+        };
+
+        // Act
+        var pages = await action.GetRelatedPagesFromProperty(input);
+
+        // Assert
+        Console.WriteLine($"Related pages:");
+        foreach (var page in pages.Pages)
+        {
+            Console.WriteLine($"{page.Id}: {page.Title}");
+        }
+        Assert.IsNotNull(pages.Pages);
+    }
+
+    [TestMethod]
+    public async Task SetRelationProperty_works()
+    {
+        // Arrange
+        var action = new PageActions(InvocationContext, FileManager);
+        var input = new SetPageRelationPropertyRequest
+        {
+            DatabaseId = "218a9644cf0280b0b845cf1cc9645f12",
+            PageId = "218a9644cf0280688f7ee0fc26eecf1a",
+            PropertyId = "jVGn",
+            RelatedPageIds =
+            [
+                "21ca9644cf0281d381d0ecde5b6caace",
+                "223a9644cf0280b5b89fe4ed27884218",
+                "223a9644cf0280b28a35cbd660f4a491",
+            ]
+        };
+        // Act
+        await action.SetRelationProperty(input);
+
+        // Assert
+        Console.WriteLine($"Successfully set relation property for page {input.PageId}");
     }
 
     [TestMethod]

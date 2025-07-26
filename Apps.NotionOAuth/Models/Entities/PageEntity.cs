@@ -1,6 +1,9 @@
+using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models.Response;
 using Apps.NotionOAuth.Models.Response.Page;
+using Apps.NotionOAuth.Utils;
 using Blackbird.Applications.Sdk.Common;
+using Newtonsoft.Json.Linq;
 
 namespace Apps.NotionOAuth.Models.Entities;
 
@@ -30,9 +33,10 @@ public class PageEntity
         Parent = response.Parent ?? new ParentEntity { };
         Archived = response.Archived ?? false;
         Url = response.Url;
-        Properties = response.Properties?.Select(x => new PropertyResponse(x)) ?? Enumerable.Empty<PropertyResponse>();
-        Title =
-            response.Properties?.FirstOrDefault(x => x.Value["title"]?.FirstOrDefault()?["plain_text"] is not null)
-                .Value?["title"]?[0]?["plain_text"]?.ToString() ?? "Untitled";
+        Properties = response.Properties?.Select(x => new PropertyResponse(x)) ?? [];
+        Title = response.Properties?
+            .Where(x => x.Value["type"]?.Value<string>() == DatabasePropertyTypes.Title)
+            .Select(x => PagePropertyParser.ToString(x.Value))
+            .FirstOrDefault() ?? "Untitled";
     }
 }
