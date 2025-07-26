@@ -232,7 +232,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         {
             foreach (var property in properties.Properties())
             {
-                if (property.Value is JObject propObj && (string.Equals((string)propObj["type"], "status",
+                if (property.Value is JObject propObj && (string.Equals((string)propObj["type"], DatabasePropertyTypes.Status,
                         StringComparison.OrdinalIgnoreCase)))
                 {
                     if (propObj.TryGetValue("status", out _))
@@ -249,7 +249,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
     {
         if (page["properties"] is JObject properties)
         {
-            var disallowedTypes = new HashSet<string> { "rollup", "created_by", "created_time", "last_edited_by", "last_edited_time" };
+            var disallowedTypes = new HashSet<string> { DatabasePropertyTypes.Rollup, DatabasePropertyTypes.CreatedBy, DatabasePropertyTypes.CreatedTime, DatabasePropertyTypes.LastEditedBy, DatabasePropertyTypes.LastEditedTime };
             var propsToRemove = properties.Properties()
                 .Where(prop => prop.Value is JObject propObj &&
                                propObj.TryGetValue("type", out var typeToken) &&
@@ -270,7 +270,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             var propsToRemove = properties.Properties()
                 .Where(prop => prop.Value is JObject propObj &&
                                propObj.TryGetValue("type", out var typeToken) &&
-                               string.Equals((string)typeToken, "status", StringComparison.OrdinalIgnoreCase))
+                               string.Equals((string)typeToken, DatabasePropertyTypes.Status, StringComparison.OrdinalIgnoreCase))
                 .Select(prop => prop.Name)
                 .ToList();
             foreach (var propName in propsToRemove)

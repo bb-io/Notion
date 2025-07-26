@@ -12,7 +12,8 @@ public class DatabaseDataHandler(InvocationContext invocationContext)
     public async Task<IEnumerable<DataSourceItem>> GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
     {
         var items = await Client.SearchAll<DatabaseResponse>(Creds, "database", context.SearchString);
-        return items.Select(x => new DatabaseEntity(x))
+        return items
+            .Select(x => new DatabaseEntity(x))
             .OrderByDescending(x => x.CreatedTime)
             .Select(x => new DataSourceItem(x.Id, x.Title));
     }

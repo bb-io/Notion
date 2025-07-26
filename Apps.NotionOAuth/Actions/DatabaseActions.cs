@@ -114,14 +114,14 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
     public async Task<DatabaseEntity> CreateDatabase([ActionParameter] CreateDatabaseInput input)
     {
         input.Properties ??= new List<PropertyRequest>();
-        if (input.Properties.All(x => x.Type != "title"))
+        if (input.Properties.All(x => x.Type != DatabasePropertyTypes.Title))
         {
             var mandatoryProperties = new List<PropertyRequest>()
             {
                 new()
                 {
                     Name = "Name",
-                    Type = "title"
+                    Type = DatabasePropertyTypes.Title
                 }
             };
             input.Properties = input.Properties.Concat(mandatoryProperties);
@@ -174,7 +174,7 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
         var propertyValue = propertyData[1];
 
         return pageResponse.Properties.Any(x =>
-            x.Value["id"]!.ToString() == propertyId && x.Value["checkbox"]?.ToString() == propertyValue);
+            x.Value["id"]!.ToString() == propertyId && x.Value[DatabasePropertyTypes.Checkbox]?.ToString() == propertyValue);
     }
 
     private bool PagePropertyHasValue(PageResponse page, string propertyId)
@@ -187,9 +187,9 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
 
         return propertyType switch
         {
-            "formula" => property[propertyType][property[propertyType]["type"].ToString()].HasValues ||
+            DatabasePropertyTypes.Formula => property[propertyType][property[propertyType]["type"].ToString()].HasValues ||
                          (property[propertyType][property[propertyType]["type"].ToString()] as JValue)?.Value != null,
-            "rollup" => property[propertyType][property[propertyType]["type"].ToString()].HasValues ||
+            DatabasePropertyTypes.Rollup => property[propertyType][property[propertyType]["type"].ToString()].HasValues ||
                         (property[propertyType][property[propertyType]["type"].ToString()] as JValue)?.Value != null,
             _ => property[propertyType].HasValues || (property[propertyType] as JValue)?.Value != null,
         };
