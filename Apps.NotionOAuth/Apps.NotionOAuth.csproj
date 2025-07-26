@@ -10,9 +10,9 @@
 	 <AssemblyName>Apps.NotionOAuth</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Blackbird.Applications.Sdk.Common" Version="2.11.0" />
+	<PackageReference Include="Blackbird.Applications.SDK.Blueprints" Version="1.0.0" />
 	<PackageReference Include="Blackbird.Applications.SDK.Extensions.FileManagement" Version="1.0.1" />
-	<PackageReference Include="Blackbird.Applications.Sdk.Utils" Version="1.0.16" />
+	<PackageReference Include="Blackbird.Applications.Sdk.Utils" Version="1.0.26" />
 	<PackageReference Include="Blackbird.Applications.Sdk.Utils.Html" Version="1.0.1" />
   </ItemGroup>
 	<ItemGroup>

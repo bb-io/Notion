@@ -14,7 +14,7 @@ using RestSharp;
 
 namespace Apps.NotionOAuth.Actions;
 
-[ActionList]
+[ActionList("Comments")]
 public class CommentActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     [Action("Search comments", Description = "List all block comments")]

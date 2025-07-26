@@ -28,7 +28,7 @@ using Newtonsoft.Json;
 
 namespace Apps.NotionOAuth.Actions;
 
-[ActionList]
+[ActionList("Pages")]
 public class PageActions(InvocationContext invocationContext, IFileManagementClient fileManagementClient)
     : NotionInvocable(invocationContext)
 {

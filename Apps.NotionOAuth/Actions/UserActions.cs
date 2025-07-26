@@ -11,7 +11,7 @@ using RestSharp;
 
 namespace Apps.NotionOAuth.Actions;
 
-[ActionList]
+[ActionList("Users")]
 public class UserActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     [Action("Search users", Description = "Search all users")]

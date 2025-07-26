@@ -17,7 +17,7 @@ using RestSharp;
 
 namespace Apps.NotionOAuth.Actions;
 
-[ActionList]
+[ActionList("Databases")]
 public class DatabaseActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     [Action("Search databases", Description = "Searches databases based on specified parameters")]

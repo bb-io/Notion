@@ -15,7 +15,7 @@ using RestSharp;
 
 namespace Apps.NotionOAuth.Actions;
 
-[ActionList]
+[ActionList("Blocks")]
 public class BlockActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     private const int MaxBlocksUploadSize = 100;
