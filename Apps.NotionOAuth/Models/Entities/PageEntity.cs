@@ -30,7 +30,7 @@ public class PageEntity
         Parent = response.Parent ?? new ParentEntity { };
         Archived = response.Archived ?? false;
         Url = response.Url;
-        Properties = response.Properties?.Select(x => new PropertyResponse(x)) ?? Enumerable.Empty<PropertyResponse>();
+        Properties = response.Properties?.Select(x => new PropertyResponse(x)) ?? [];
         Title =
             response.Properties?.FirstOrDefault(x => x.Value["title"]?.FirstOrDefault()?["plain_text"] is not null)
                 .Value?["title"]?[0]?["plain_text"]?.ToString() ?? "Untitled";
