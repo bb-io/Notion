@@ -302,6 +302,20 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         }
     }
 
+    [Action("Get pages related by property", Description = "Get related pages from a page's property")]
+    public async Task<ListPagesResponse> GetRelatedPagesFromProperty(
+        [ActionParameter] PageRelationPropertyRequest input)
+    {
+        JObject response = await GetPageProperty(input.PageId, input.PropertyId);
+
+        var relatedPagesTasks = response["results"]?
+            .Select(x => x["relation"]?["id"]?.Value<string>() ?? string.Empty)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Select(id => GetPage(new() { PageId = id })) ?? [];
+
+        return new(await Task.WhenAll(relatedPagesTasks));
+    }
+
     #endregion
 
     #region Setters
@@ -412,6 +426,20 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         {
             DatabasePropertyTypes.Date => PagePropertyPayloadFactory.GetDate(input.Date, input.EndDate, input.IncludeTime),
             _ => throw new ArgumentException("Given ID does not stand for a date value property")
+        };
+
+        await UpdatePageProperty(input.PageId, name, payload);
+    }
+
+    [Action("Set page relation property", Description = "Set new value of a relation page property")]
+    public async Task SetRelationProperty([ActionParameter] SetPageRelationPropertyRequest input)
+    {
+        var (name, property) = await GetPagePropertyWithName(input.PageId, input.PropertyId);
+
+        var payload = property["type"]!.ToString() switch
+        {
+            DatabasePropertyTypes.Relation => PagePropertyPayloadFactory.GetRelation(input.RelatedPageIds),
+            _ => throw new PluginMisconfigurationException("Given field ID does not stand for a relation property.")
         };
 
         await UpdatePageProperty(input.PageId, name, payload);
