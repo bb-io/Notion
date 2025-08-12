@@ -10,7 +10,7 @@ public class DatabaseActionsTests : TestBase
 {
     private DatabaseActions _actions => new(InvocationContext);
 
-    private JsonSerializerOptions JsonOptions => new JsonSerializerOptions { WriteIndented = true };
+    private static JsonSerializerOptions JsonOptions => new() { WriteIndented = true };
 
     [TestMethod]
     public async Task SearchPagesInDatabase_works()
