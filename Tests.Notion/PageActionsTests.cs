@@ -17,19 +17,36 @@ public class PageActionsTests :TestBase
     public async Task GetStringProperty_ValidParameters_ShouldReturnProperty()
     {
         // Arrange
-        var pageId = "1b5efdee-ad05-8100-90af-f0471933c5e6";
         var input = new PageStringPropertyRequest
         {
-            PageId = pageId,
-            DatabaseId = "18cefdee-ad05-80ab-a9fd-d1b5894d9d61",
-            PropertyId = "Y_%5EN",
+            PageId = "21ca9644cf0281d381d0ecde5b6caace",
+            DatabaseId = "218a9644cf0280b0b845cf1cc9645f12",
+            PropertyId = "[KJ@",
         };
 
         // Act
         var page = await _actions.GetStringProperty(input);
 
         // Assert
-        Console.WriteLine($"String property: {page.PropertyValue}");
+        Console.WriteLine($"String property: '{page.PropertyValue}'");
+    }
+
+    [TestMethod]
+    public async Task GetStringProperty_EmptyValue_ShouldReturnEmptyString()
+    {
+        // Arrange
+        var input = new PageStringPropertyRequest
+        {
+            PageId = "223a9644cf0280b5b89fe4ed27884218",
+            DatabaseId = "218a9644cf0280b0b845cf1cc9645f12",
+            PropertyId = "[KJ@",
+        };
+
+        // Act
+        var page = await _actions.GetStringProperty(input);
+
+        // Assert
+        Console.WriteLine($"String property (empty expected): '{page.PropertyValue}'");
     }
 
     [TestMethod]

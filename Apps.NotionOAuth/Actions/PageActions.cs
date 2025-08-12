@@ -185,14 +185,17 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     {
         var response = await GetPageProperty(input.PageId, input.PropertyId);
 
-        if (response["results"] is not null && response["results"]!.Any())
+        var propertyValue = string.Empty;
+
+        if (response["results"]?.Any() == true)
         {
-            response = response["results"]!.First().ToObject<JObject>()!;
+            propertyValue = response["results"]?.First().ToObject<JObject>()?.GetStringValue()
+                ?? string.Empty;
         }
 
         return new()
         {
-            PropertyValue = response.GetStringValue()!
+            PropertyValue = propertyValue
         };
     }
 
