@@ -112,7 +112,15 @@ For now, these types won't be transferred. We are continuously working to improv
 > `Pages and databases cannot be nested inside other blocks. Page or database ('Page name or ID') has parent type 'block_id'. Please move it to the root level.`  
 > To resolve this issue, ensure that all subpages and sub-databases are placed at the root level and are not nested within other blocks.
 
-### Limitation
+## Demo video
+
+Streamline your Notion workflows with Blackbird.io
+
+import { YouTube } from '@astro-community/astro-embed-youtube';
+
+<YouTube id="https://youtu.be/WP7L8AefTMA" />
+
+### Limitations
 
 While improving the Notion app, fixing issues, and enhancing error messages, we identified several API limitations that impact functionality:
 
