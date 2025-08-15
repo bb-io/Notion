@@ -187,6 +187,13 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         var propertyValue = string.Empty;
 
+        if (response.HasValues)
+        {
+            try { propertyValue = response.GetStringValue(); }
+            catch { }
+            
+        }
+
         if (response["results"]?.Any() == true)
         {
             propertyValue = response["results"]?.First().ToObject<JObject>()?.GetStringValue()
