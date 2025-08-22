@@ -49,8 +49,8 @@ public class CallbackEvents
             Result = new ButtonClickedResponse()
             {
                 PageId = body.Data.PageId,
-                ParentType = body.Parent.Type,
-                ParentId = body.Parent.GetParentId(),
+                ParentType = body.Data.Parent.Type,
+                ParentId = body.Data.Parent.GetParentId(),
             }
         });
     }

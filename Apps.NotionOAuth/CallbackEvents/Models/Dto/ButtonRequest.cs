@@ -5,15 +5,15 @@ public class ButtonRequest
 {
     [JsonProperty("data")]
     public Data Data { get; set; } = new();
-
-    [JsonProperty("parent")]
-    public Parent Parent { get; set; } = new();
 }
 
 public class Data
 {
     [JsonProperty("id")]
     public string PageId { get; set; } = string.Empty;
+
+    [JsonProperty("parent")]
+    public Parent Parent { get; set; } = new();
 }
 
 public class Parent
