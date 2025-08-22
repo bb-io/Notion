@@ -14,15 +14,15 @@ public class CallbackEvents
     [Webhook("On button clicked", Description = "Triggered when you click a button on a Notion page. See")]
     public Task<WebhookResponse<ButtonClickedResponse>> OrderDeleted(
         WebhookRequest webhookRequest,
-        [WebhookParameter, Display("Custom header key")] string filterHeaderName,
-        [WebhookParameter, Display("Custom header contains")] string filterHeaderExpectedPart)
+        [WebhookParameter, Display("Custom header key")] string? filterHeaderName,
+        [WebhookParameter, Display("Custom header contains")] string? filterHeaderExpectedPart)
     {
         if (string.IsNullOrWhiteSpace(filterHeaderName) != string.IsNullOrWhiteSpace(filterHeaderExpectedPart))
             throw new PluginMisconfigurationException("Both filter header name and expected part must be provided or both must be empty.");
 
         if (string.IsNullOrWhiteSpace(filterHeaderName) == false
             && webhookRequest.Headers.TryGetValue(filterHeaderName, out var filterHeaderValue)
-            && filterHeaderValue.Contains(filterHeaderExpectedPart, StringComparison.OrdinalIgnoreCase))
+            && filterHeaderValue.Contains(filterHeaderExpectedPart!, StringComparison.OrdinalIgnoreCase))
         {
             return Task.FromResult(new WebhookResponse<ButtonClickedResponse>
             {
