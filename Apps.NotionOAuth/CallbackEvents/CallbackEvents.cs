@@ -27,13 +27,15 @@ public class CallbackEvents
             });
         }
 
-        if (string.IsNullOrWhiteSpace(filterHeaderName) == false
+        if (!string.IsNullOrWhiteSpace(filterHeaderName)
             && webhookRequest.Headers.TryGetValue(filterHeaderName, out var filterHeaderValue)
-            && filterHeaderValue.Contains(filterHeaderExpectedPart!, StringComparison.OrdinalIgnoreCase))
+            && !filterHeaderValue.Contains(filterHeaderExpectedPart!, StringComparison.OrdinalIgnoreCase))
         {
+            // don't start flight as filter header is present
+            // but doesn't match the expected part
             return Task.FromResult(new WebhookResponse<ButtonClickedResponse>
             {
-                ReceivedWebhookRequestType = WebhookRequestType.Preflight, // don't start flight
+                ReceivedWebhookRequestType = WebhookRequestType.Preflight, 
                 HttpResponseMessage = new HttpResponseMessage(statusCode: HttpStatusCode.OK),
                 Result = null
             });
