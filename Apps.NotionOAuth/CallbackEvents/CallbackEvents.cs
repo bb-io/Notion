@@ -18,7 +18,14 @@ public class CallbackEvents
         [WebhookParameter, Display("Custom header contains")] string? filterHeaderExpectedPart)
     {
         if (string.IsNullOrWhiteSpace(filterHeaderName) != string.IsNullOrWhiteSpace(filterHeaderExpectedPart))
-            throw new PluginMisconfigurationException("Both filter header name and expected part must be provided or both must be empty.");
+        {
+            return Task.FromResult(new WebhookResponse<ButtonClickedResponse>
+            {
+                ReceivedWebhookRequestType = WebhookRequestType.Preflight, // don't start flight
+                HttpResponseMessage = new HttpResponseMessage(statusCode: HttpStatusCode.OK),
+                Result = null
+            });
+        }
 
         if (string.IsNullOrWhiteSpace(filterHeaderName) == false
             && webhookRequest.Headers.TryGetValue(filterHeaderName, out var filterHeaderValue)
