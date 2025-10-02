@@ -21,8 +21,8 @@ public class DataSourcesActions(InvocationContext invocationContext) : NotionInv
     {
         var endpoint = $"{ApiEndpoints.DataSources}/{dataSourceRequest.DataSourceId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds, ApiConstants.LatestApiVersion);
+        
         Dictionary<string, object>? bodyDictionary = null;
-
         if(searchRequest.FilterProperty != null && searchRequest.FilterPropertyType != null)
         {
             if(searchRequest.FilterValue == null && searchRequest.FilterValueIsEmpty == null)
