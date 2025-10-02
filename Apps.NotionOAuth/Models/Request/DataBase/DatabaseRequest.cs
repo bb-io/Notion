@@ -6,7 +6,6 @@ namespace Apps.NotionOAuth.Models.Request.DataBase;
 
 public class DatabaseRequest
 {
-    [Display("Database ID")]
-    [DataSource(typeof(DatabaseDataHandler))]
-    public string DatabaseId { get; set; }
+    [Display("Database ID"), DataSource(typeof(DatabaseDataHandler))]
+    public string DatabaseId { get; set; } = string.Empty;
 }

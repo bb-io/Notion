@@ -8,6 +8,7 @@ using Apps.NotionOAuth.Models.Request.DataBase;
 using Apps.NotionOAuth.Models.Request.DataBase.Properties.Getters;
 using Apps.NotionOAuth.Models.Response.DataBase;
 using Apps.NotionOAuth.Models.Response.Page;
+using Apps.NotionOAuth.Utils;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
@@ -33,9 +34,8 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
         return new(databases);
     }
 
-    [Action("Search pages in database", Description = "Search pages in database that match specific condition")]
-    public async Task<ListPagesResponse> SearchPagesInDatabase(
-        [ActionParameter] SearchPagesInDatabaseRequest input)
+    [Action("Search pages in database (deprecated)", Description = "Search pages in database that match specific condition. Use 'Search pages in data source' instead")]
+    public async Task<ListPagesResponse> SearchPagesInDatabase([ActionParameter] SearchPagesInDatabaseRequest input)
     {
         var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds);
@@ -72,23 +72,14 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
         var pages = response
             .Where(x => x.LastEditedTime > (input.EditedSince ?? default))
             .Where(x => x.CreatedTime > (input.CreatedSince ?? default))
-            .Where(x => input.CheckboxProperty is null || FilterCheckboxProperty(x, input.CheckboxProperty))
-            .Where(x => input.SelectProperty is null || FilterSelectProperty(x, input.SelectProperty))
-            .Where(x => input.PropertiesShouldHaveValue is null || input.PropertiesShouldHaveValue.All(y => PagePropertyHasValue(x, y)))
-            .Where(x => input.PropertiesWithoutValues is null || input.PropertiesWithoutValues.All(y => !PagePropertyHasValue(x, y)))
+            .Where(x => input.CheckboxProperty is null || x.FilterCheckboxProperty(input.CheckboxProperty))
+            .Where(x => input.SelectProperty is null || x.FilterSelectProperty(input.SelectProperty))
+            .Where(x => input.PropertiesShouldHaveValue is null || input.PropertiesShouldHaveValue.All(x.PagePropertyHasValue))
+            .Where(x => input.PropertiesWithoutValues is null || input.PropertiesWithoutValues.All(y => !x.PagePropertyHasValue(y)))
             .Select(x => new PageEntity(x))
             .ToArray();
 
         return new(pages);
-    }
-
-    public async Task<List<DatabaseJsonEntity>> SearchPagesInDatabaseAsJsonAsync(string databaseId)
-    {
-        var endpoint = $"{ApiEndpoints.Databases}/{databaseId}/query";
-        var request = new NotionRequest(endpoint, Method.Post, Creds);
-
-        var response = await Client.PaginateWithBody<DatabaseJsonEntity>(request);
-        return response;
     }
 
     [Action("Search single page by text property", Description = "Search a database for a single page that matches on a text property")]
@@ -144,6 +135,15 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
         return new(response);
     }
     
+    public async Task<List<DatabaseJsonEntity>> SearchPagesInDatabaseAsJsonAsync(string databaseId)
+    {
+        var endpoint = $"{ApiEndpoints.Databases}/{databaseId}/query";
+        var request = new NotionRequest(endpoint, Method.Post, Creds);
+
+        var response = await Client.PaginateWithBody<DatabaseJsonEntity>(request);
+        return response;
+    }
+    
     public async Task<JObject> GetDatabaseAsJson([ActionParameter] DatabaseRequest input)
     {
         var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}";
@@ -152,48 +152,4 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
         var response = await Client.ExecuteWithErrorHandling<JObject>(request);
         return response;
     }
-
-    #region Utils
-
-    private bool FilterSelectProperty(PageResponse pageResponse, string inputSelectProperty)
-    {
-        var propertyData = inputSelectProperty.Split(';');
-
-        var propertyId = propertyData[0];
-        var propertyValue = propertyData[1];
-
-        return pageResponse.Properties.Any(x =>
-            x.Value["id"]!.ToString() == propertyId && x.Value.SelectToken("select.name")?.ToString() == propertyValue);
-    }
-
-    private bool FilterCheckboxProperty(PageResponse pageResponse, string inputCheckboxProperty)
-    {
-        var propertyData = inputCheckboxProperty.Split(';');
-
-        var propertyId = propertyData[0];
-        var propertyValue = propertyData[1];
-
-        return pageResponse.Properties.Any(x =>
-            x.Value["id"]!.ToString() == propertyId && x.Value["checkbox"]?.ToString() == propertyValue);
-    }
-
-    private bool PagePropertyHasValue(PageResponse page, string propertyId)
-    {
-        KeyValuePair<string, JObject>? propertyPair =
-            page.Properties.FirstOrDefault(x => x.Value["id"].ToString() == propertyId);
-
-        var property = propertyPair?.Value ?? throw new("No property found with the provided ID");
-        var propertyType = property["type"].ToString();
-
-        return propertyType switch
-        {
-            "formula" => property[propertyType][property[propertyType]["type"].ToString()].HasValues ||
-                         (property[propertyType][property[propertyType]["type"].ToString()] as JValue)?.Value != null,
-            "rollup" => property[propertyType][property[propertyType]["type"].ToString()].HasValues ||
-                        (property[propertyType][property[propertyType]["type"].ToString()] as JValue)?.Value != null,
-            _ => property[propertyType].HasValues || (property[propertyType] as JValue)?.Value != null,
-        };
-    }
-
-    #endregion
 }

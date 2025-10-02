@@ -8,7 +8,7 @@ using Tests.Notion.Base;
 namespace Tests.Notion;
 
 [TestClass]
-public class PageActionsTests :TestBase
+public class PageActionsTests : TestBase
 {
     [TestMethod]
     public async Task GetStringProperty_ValidParameters_ShouldReturnProperty()

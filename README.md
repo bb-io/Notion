@@ -42,7 +42,7 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 ### Databases
 
 - **Search databases** returns a list of all databases in the workspace. You can filter the list by create/edited time.
-- **Search pages in database** returns a list of all child `Pages` in the database. You can filter the list by create/edited time. 
+- **Search pages in database (deprecated)** returns a list of all child `Pages` in the database. You can filter the list by create/edited time. Use 'Search pages in data source' instead
 - **Create/Get database**
 
 ### Pages
