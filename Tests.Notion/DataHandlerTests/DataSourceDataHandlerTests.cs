@@ -7,9 +7,7 @@ namespace Tests.Notion.DataHandlerTests;
 [TestClass]
 public class DataSourceDataHandlerTests : BaseDataHandlerTests
 {
-    protected override IAsyncDataSourceItemHandler DataHandler => new DataSourceDataHandler(InvocationContext, new DatabaseRequest()
-    {
-    });
+    protected override IAsyncDataSourceItemHandler DataHandler => new DataSourceDataHandler(InvocationContext);
 
     protected override string SearchString => "Tickets";
 }

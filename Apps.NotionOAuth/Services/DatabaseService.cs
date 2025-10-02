@@ -21,7 +21,7 @@ public class DatabaseService(InvocationContext invocationContext)
         PluginMisconfigurationExceptionHelper.ThrowIfNullOrEmpty(queryRequest.StatusPropertyValue);
         
         var endpoint = $"{ApiEndpoints.Databases}/{queryRequest.DatabaseId}/query";
-        var request = new NotionRequest(endpoint, Method.Post, invocationContext.AuthenticationCredentialsProviders);
+        var request = new NotionRequest(endpoint, Method.Post, invocationContext.AuthenticationCredentialsProviders, ApiConstants.NotLatestApiVersion);
 
         var bodyDictionary = new Dictionary<string, object>()
         {

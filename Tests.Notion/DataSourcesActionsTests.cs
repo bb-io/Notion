@@ -15,7 +15,6 @@ public class DataSourcesActionsTests : TestBase
         var action = new DataSourcesActions(InvocationContext);
         var input = new DataSourceRequest
         {
-            DatabaseId = "f9e01a70-9205-4464-ae16-1fcff4733d51",
             DataSourceId = "49ddf508-2731-4b25-ab8a-208f168043c4"
         };
 
