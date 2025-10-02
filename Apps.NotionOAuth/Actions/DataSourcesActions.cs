@@ -12,7 +12,7 @@ using RestSharp;
 
 namespace Apps.NotionOAuth.Actions;
 
-[ActionList]
+[ActionList("Data sources")]
 public class DataSourcesActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     [Action("Search pages in datasource", Description = "Search pages in a specific datasource")]
