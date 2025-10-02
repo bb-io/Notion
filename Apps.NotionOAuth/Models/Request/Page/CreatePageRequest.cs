@@ -14,9 +14,19 @@ public class CreatePageRequest
         Parent = new();
 
         if (input.PageId is not null)
+        {
             Parent.PageId = input.PageId;
+        }
+        
         if (input.DatabaseId is not null)
+        {
             Parent.DatabaseId = input.DatabaseId;
+        }
+        
+        if (input.DataSourceId is not null)
+        {
+            Parent.DataSourceId = input.DataSourceId;
+        }
 
         Properties = new()
         {

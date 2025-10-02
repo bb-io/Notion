@@ -11,4 +11,7 @@ public class ParentEntity
     
     [Display("Database ID")]
     public string? DatabaseId { get; set; }
+    
+    [Display("Data source ID")]
+    public string? DataSourceId { get; set; }
 }

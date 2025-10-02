@@ -16,7 +16,7 @@ public class DatabaseResponse
     public IEnumerable<TitleModel>? Title { get; set; }
 
     [Display("Data sources"), DefinitionIgnore]
-    public List<DataSourceResponse> DataSources { get; set; } = new();
+    public List<DataSourceShortResponse> DataSources { get; set; } = new();
     
     public Dictionary<string, PropertyResponse> Properties { get; set; } = new();
     

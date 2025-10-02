@@ -54,7 +54,8 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         if (input.PageId is null && input.DatabaseId is null)
             throw new PluginMisconfigurationException("Page must have a parent, you should specify either parent page or parent database");
 
-        var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
+        var apiVersion = input.DataSourceId == null ? null : ApiConstants.LatestApiVersion;
+        var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds, apiVersion)
             .WithJsonBody(new CreatePageRequest(input), JsonConfig.Settings);
 
         var response = await Client.ExecuteWithErrorHandling<PageResponse>(request);
@@ -62,8 +63,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     }
 
     [Action("Create page from HTML", Description = "Create a new page from HTML")]
-    public async Task<PageEntity> CreatePageFromHtml(
-        [ActionParameter] CreatePageInput input,
+    public async Task<PageEntity> CreatePageFromHtml([ActionParameter] CreatePageInput input,
         [ActionParameter] FileRequest file)
     {
         var page = await CreatePage(input);
