@@ -3,6 +3,7 @@ using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.Models.Request.DataSource;
+using Apps.NotionOAuth.Models.Response.DataBase;
 using Apps.NotionOAuth.Models.Response.Page;
 using Apps.NotionOAuth.Utils;
 using Blackbird.Applications.Sdk.Common;
@@ -62,5 +63,13 @@ public class DataSourcesActions(InvocationContext invocationContext) : NotionInv
             .ToArray();
 
         return new(pages);
+    }
+    
+    public async Task<List<string>> GetDataSourceIdsAsync(string databaseId)
+    {
+        var endpoint = $"{ApiEndpoints.Databases}/{databaseId}";
+        var request = new NotionRequest(endpoint, Method.Get, Creds, ApiConstants.LatestApiVersion);
+        var response = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
+        return response.DataSources.Select(x => x.Id).ToList();
     }
 }
