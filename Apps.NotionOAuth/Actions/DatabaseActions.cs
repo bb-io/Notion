@@ -24,7 +24,7 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
     [Action("Search databases", Description = "Searches databases based on specified parameters")]
     public async Task<ListDatabasesResponse> ListDatabases([ActionParameter] ListRequest input)
     {
-        var items = await Client.SearchAll<DatabaseResponse>(Creds, "database");
+        var items = await Client.SearchAll<DatabaseResponse>(Creds, "database", apiVersion: ApiConstants.NotLatestApiVersion);
         var databases = items
             .Select(x => new DatabaseEntity(x))
             .Where(x => x.LastEditedTime > (input.EditedSince ?? default))
@@ -38,7 +38,7 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
     public async Task<ListPagesResponse> SearchPagesInDatabase([ActionParameter] SearchPagesInDatabaseRequest input)
     {
         var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}/query";
-        var request = new NotionRequest(endpoint, Method.Post, Creds);
+        var request = new NotionRequest(endpoint, Method.Post, Creds, ApiConstants.NotLatestApiVersion);
         Dictionary<string, object>? bodyDictionary = null;
 
         if(input.FilterProperty != null && input.FilterPropertyType != null)
@@ -87,7 +87,7 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
     [ActionParameter] StringPropertyWithValueRequest input)
     {
         var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}/query";
-        var request = new NotionRequest(endpoint, Method.Post, Creds);
+        var request = new NotionRequest(endpoint, Method.Post, Creds, ApiConstants.NotLatestApiVersion);
 
         var response = await Client.PaginateWithBody<PageResponse>(request);
         foreach (var page in response)
@@ -138,7 +138,7 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
     public async Task<List<DatabaseJsonEntity>> SearchPagesInDatabaseAsJsonAsync(string databaseId)
     {
         var endpoint = $"{ApiEndpoints.Databases}/{databaseId}/query";
-        var request = new NotionRequest(endpoint, Method.Post, Creds);
+        var request = new NotionRequest(endpoint, Method.Post, Creds, ApiConstants.NotLatestApiVersion);
 
         var response = await Client.PaginateWithBody<DatabaseJsonEntity>(request);
         return response;
@@ -147,7 +147,7 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
     public async Task<JObject> GetDatabaseAsJson([ActionParameter] DatabaseRequest input)
     {
         var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}";
-        var request = new NotionRequest(endpoint, Method.Get, Creds);
+        var request = new NotionRequest(endpoint, Method.Get, Creds, ApiConstants.NotLatestApiVersion);
 
         var response = await Client.ExecuteWithErrorHandling<JObject>(request);
         return response;

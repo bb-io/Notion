@@ -28,7 +28,7 @@ public class DataSourceDataHandler(InvocationContext invocationContext, [ActionP
                 .Select(x => new DataSourceItem(x.Id, x.Name));
         }
         
-        var items = await Client.SearchAll<DataSourceResponse>(Creds, "data_source", context.SearchString, ApiConstants.LatestApiVersion);
+        var items = await Client.SearchAll<DataSourceResponse>(Creds, "data_source", context.SearchString);
         return items
             .Select(x => new DataSourceEntity(x))
             .OrderByDescending(x => x.CreatedTime)

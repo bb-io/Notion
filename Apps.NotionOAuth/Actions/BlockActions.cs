@@ -136,7 +136,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             RemoveDisallowedGeneratedProperties(page);
             RemoveStatusProperties(page);
             
-            var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds, ApiConstants.LatestApiVersion)
+            var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
                 .WithJsonBody(page, JsonConfig.Settings);
             
             var pageResponse = await Client.ExecuteWithErrorHandling<PageResponse>(request);
@@ -168,7 +168,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             RemoveGroupsFromProperties(database);
             FixStatusProperties(database);
 
-            var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds, ApiConstants.LatestApiVersion)
+            var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds)
                 .WithJsonBody(database, JsonConfig.Settings);
             var createdDatabase = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
             await AppendBlockChildren(createdDatabase.Id, children.ToArray());

@@ -1,3 +1,4 @@
+using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.Models.Response.DataBase;
@@ -11,7 +12,7 @@ public class DatabaseDataHandler(InvocationContext invocationContext)
 {
     public async Task<IEnumerable<DataSourceItem>> GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
     {
-        var items = await Client.SearchAll<DatabaseResponse>(Creds, "database", context.SearchString);
+        var items = await Client.SearchAll<DatabaseResponse>(Creds, "database", context.SearchString, ApiConstants.NotLatestApiVersion);
         return items
             .Select(x => new DatabaseEntity(x))
             .OrderByDescending(x => x.CreatedTime)

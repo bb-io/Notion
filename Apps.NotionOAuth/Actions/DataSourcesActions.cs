@@ -21,7 +21,7 @@ public class DataSourcesActions(InvocationContext invocationContext) : NotionInv
         [ActionParameter] SearchPagesInDataSourceRequest searchRequest)
     {
         var endpoint = $"{ApiEndpoints.DataSources}/{dataSourceRequest.DataSourceId}/query";
-        var request = new NotionRequest(endpoint, Method.Post, Creds, ApiConstants.LatestApiVersion);
+        var request = new NotionRequest(endpoint, Method.Post, Creds);
         
         Dictionary<string, object>? bodyDictionary = null;
         if(searchRequest.FilterProperty != null && searchRequest.FilterPropertyType != null)
@@ -68,7 +68,7 @@ public class DataSourcesActions(InvocationContext invocationContext) : NotionInv
     public async Task<List<string>> GetDataSourceIdsAsync(string databaseId)
     {
         var endpoint = $"{ApiEndpoints.Databases}/{databaseId}";
-        var request = new NotionRequest(endpoint, Method.Get, Creds, ApiConstants.LatestApiVersion);
+        var request = new NotionRequest(endpoint, Method.Get, Creds);
         var response = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
         return response.DataSources.Select(x => x.Id).ToList();
     }
