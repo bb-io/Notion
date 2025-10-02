@@ -5,7 +5,7 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.NotionOAuth.Actions;
 
-[ActionList]
+[ActionList("Miscellaneous")]
 public class DebugActions(InvocationContext invocationContext)
     : NotionInvocable(invocationContext)
 {

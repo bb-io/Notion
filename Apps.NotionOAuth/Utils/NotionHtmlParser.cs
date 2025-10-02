@@ -29,7 +29,7 @@ public static class NotionHtmlParser
 
     private static readonly string[] NonTextTranslatableTypes = { "table_row", "child_page", "database" };
 
-    private static readonly string[] TextTypes = { "rich_text", "text" };
+    private static readonly string[] TextTypes = { DatabasePropertyTypes.RichText, "text" };
 
     // main method
     public static JObject[] ParseHtml(string html)
@@ -57,7 +57,7 @@ public static class NotionHtmlParser
     {
         var extractedPageId = ExtractPageId(html);
         if (string.IsNullOrEmpty(extractedPageId))
-            throw new Exception("Page ID not found in HTML");
+            throw new PluginMisconfigurationException("Page ID not found in HTML");
         return NormalizeId(extractedPageId);
     }
 
@@ -80,7 +80,7 @@ public static class NotionHtmlParser
                     }
                     else
                     {
-                        throw new Exception($"Parent block with ID {parentId} not found");
+                        throw new PluginMisconfigurationException($"Parent block with ID {parentId} not found");
                     }
                 }
             }
@@ -161,10 +161,10 @@ public static class NotionHtmlParser
             }
         }
 
-        block.Remove("created_time");
-        block.Remove("last_edited_time");
-        block.Remove("created_by");
-        block.Remove("last_edited_by");
+        block.Remove(DatabasePropertyTypes.CreatedTime);
+        block.Remove(DatabasePropertyTypes.LastEditedTime);
+        block.Remove(DatabasePropertyTypes.CreatedBy);
+        block.Remove(DatabasePropertyTypes.LastEditedBy);
         block.Remove("archived");
         block.Remove("in_trash");
         block.Remove("has_children");
@@ -344,10 +344,10 @@ public static class NotionHtmlParser
 
         if (type == "child_page" && objectType == "block")
         {
-            var title = jObject["child_page"]!["title"]?.ToString();
+            var title = jObject["child_page"]![DatabasePropertyTypes.Title]?.ToString();
             return string.IsNullOrEmpty(title)
                 ? null
-                : $"<p data-property-id=\"title\" data-property-name=\"title\" data-property-type=\"title\">{title}</p>";
+                : $"<p data-property-id=\"title\" data-property-name=\"title\" data-property-type=\"{DatabasePropertyTypes.Title}\">{title}</p>";
         }
 
         if (type == null && objectType == "database")
@@ -387,10 +387,10 @@ public static class NotionHtmlParser
                     var valueString = string.Empty;
                     switch (propertyType)
                     {
-                        case "title":
-                        case "rich_text":
+                        case DatabasePropertyTypes.Title:
+                        case DatabasePropertyTypes.RichText:
                             var includePageProperties = actionRequest.IncludePageProperties ?? false;
-                            if (!includePageProperties && propertyType != "title")
+                            if (!includePageProperties && propertyType != DatabasePropertyTypes.Title)
                             {
                                 break;
                             }
@@ -442,7 +442,7 @@ public static class NotionHtmlParser
 
         var content = new JObject()
         {
-            { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) },
+            { DatabasePropertyTypes.RichText, JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) },
             { "color", "default" }
         };
 
@@ -495,7 +495,7 @@ public static class NotionHtmlParser
 
         var content = new JObject(contextParams)
         {
-            { "rich_text", JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) }
+            { DatabasePropertyTypes.RichText, JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) }
         };
 
         string? childBlockIds = null;
@@ -545,7 +545,7 @@ public static class NotionHtmlParser
         block.Descendants().OfType<JProperty>()
             .Where(x => x is { Name: "url" } && x.Value.ToString() == "#")
             .ToList()
-            .ForEach(x => x.Value = null);
+            .ForEach(x => x.Value = JValue.CreateNull());
     }
 
     private static bool BlockIsUntranslatable(string type, JToken? content)

@@ -1,13 +1,14 @@
 ﻿using Blackbird.Applications.Sdk.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Apps.NotionOAuth.CallbackEvents.Models.Responses;
 public class ButtonClickedResponse
 {
     [Display("Page ID")]
-    public string PageId { get; set; }
+    public string PageId { get; set; } = string.Empty;
+
+    [Display("Parent Type")]
+    public string ParentType { get; set; } = string.Empty;
+
+    [Display("Parent ID")]
+    public string ParentId { get; set; } = string.Empty;
 }

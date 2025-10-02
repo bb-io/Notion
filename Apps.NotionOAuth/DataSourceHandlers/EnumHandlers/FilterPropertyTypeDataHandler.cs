@@ -1,4 +1,5 @@
-﻿using Blackbird.Applications.Sdk.Common.Dictionaries;
+﻿using Apps.NotionOAuth.Constants;
+using Blackbird.Applications.Sdk.Common.Dictionaries;
 using Blackbird.Applications.Sdk.Common.Dynamic;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.EnumHandlers;
@@ -7,16 +8,16 @@ public class FilterPropertyTypeDataHandler : IStaticDataSourceItemHandler
 {
     private static Dictionary<string, string> Data => new()
     {
-        { "date", "Date" },
-        { "files", "Files" },
-        { "multi_select", "Multi-select" },
-        { "number", "Number" },
-        { "people", "People" },
-        { "relation", "Relation" },
-        { "rich_text", "Rich text" },
-        { "rollup", "Rollup" },
-        { "select", "Select" },
-        { "status", "Status" },
+        { DatabasePropertyTypes.Date, "Date" },
+        { DatabasePropertyTypes.Files, "Files" },
+        { DatabasePropertyTypes.MultiSelect, "Multi-select" },
+        { DatabasePropertyTypes.Number, "Number" },
+        { DatabasePropertyTypes.People, "People" },
+        { DatabasePropertyTypes.Relation, "Relation" },
+        { DatabasePropertyTypes.RichText, "Rich text" },
+        { DatabasePropertyTypes.Rollup, "Rollup" },
+        { DatabasePropertyTypes.Select, "Select" },
+        { DatabasePropertyTypes.Status, "Status" },
     };
 
     public IEnumerable<DataSourceItem> GetData()

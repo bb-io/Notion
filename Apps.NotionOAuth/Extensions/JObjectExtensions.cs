@@ -14,15 +14,15 @@ public static class JObjectExtensions
     {
         return obj["type"]!.ToString() switch
         {
-            "url" => obj["url"]!.ToString(),
-            "title" => HandleTitleObject(obj["title"]!),
-            "email" => obj["email"]!.ToString(),
-            "phone_number" => obj["phone_number"]!.ToString(),
-            "status" => obj["status"]!["name"]!.ToString(),
-            "created_by" => obj["created_by"]!["id"]!.ToString(),
-            "last_edited_by" => obj["last_edited_by"]!["id"]!.ToString(),
-            "select" => obj["select"]!["name"]!.ToString(),
-            "rich_text" => obj["rich_text"]!.ToObject<TitleModel>()!.PlainText,
+            DatabasePropertyTypes.Url => obj["url"]!.ToString(),
+            DatabasePropertyTypes.Title => HandleTitleObject(obj["title"]!),
+            DatabasePropertyTypes.Email => obj["email"]!.ToString(),
+            DatabasePropertyTypes.PhoneNumber => obj["phone_number"]!.ToString(),
+            DatabasePropertyTypes.Status => obj["status"]!["name"]!.ToString(),
+            DatabasePropertyTypes.CreatedBy => obj["created_by"]!["id"]!.ToString(),
+            DatabasePropertyTypes.LastEditedBy => obj["last_edited_by"]!["id"]!.ToString(),
+            DatabasePropertyTypes.Select => obj["select"]!["name"]!.ToString(),
+            DatabasePropertyTypes.RichText => obj["rich_text"]!.ToObject<TitleModel>()!.PlainText,
             _ => throw new ArgumentException("Given property is not of type string")
         };
     }

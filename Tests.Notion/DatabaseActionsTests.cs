@@ -3,6 +3,7 @@ using Apps.NotionOAuth.Models.Request;
 using Apps.NotionOAuth.Models.Request.DataBase;
 using Apps.NotionOAuth.Models.Response.DataBase;
 using Apps.NotionOAuth.Models.Response.Page;
+using Newtonsoft.Json;
 using Tests.Notion.Base;
 
 namespace Tests.Notion;
@@ -53,6 +54,35 @@ public class DatabaseActionsTests : TestBase
         {
             Console.WriteLine($"Page ID: {page.Id}, Created Time: {page.CreatedTime}, Last Edited Time: {page.LastEditedTime}");
         }
+    }
+    
+    [TestMethod]
+    public async Task SearchPagesInDatabase_works()
+    {
+        // Arrange
+        var action = new DatabaseActions(InvocationContext);
+        var request = new SearchPagesInDatabaseRequest
+        {
+            DatabaseId = "36187e6f6a334648b9a94fde6c9e19f1",
+            FilterProperty = "Type",
+            FilterPropertyType = "select",
+            FilterValue = "Solution architecting"
+        };
+
+        // Act
+        var response = await action.SearchPagesInDatabase(request);
+
+        // Assert
+        Console.WriteLine($"Pages found:");
+        foreach (var page in response.Pages)
+        {
+            Console.WriteLine($"{page.Id}: {page.Title}");
+        }
+
+        Console.WriteLine($"First page:");
+        Console.WriteLine(JsonConvert.SerializeObject(response, Formatting.Indented));
+
+        Assert.IsTrue(response.Pages.Length > 0, "Expected at least one page in the response.");
     }
     
     [TestMethod]

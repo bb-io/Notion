@@ -18,7 +18,7 @@ using RestSharp;
 
 namespace Apps.NotionOAuth.Actions;
 
-[ActionList]
+[ActionList("Databases")]
 public class DatabaseActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     [Action("Search databases", Description = "Searches databases based on specified parameters")]
@@ -105,14 +105,14 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
     public async Task<DatabaseEntity> CreateDatabase([ActionParameter] CreateDatabaseInput input)
     {
         input.Properties ??= new List<PropertyRequest>();
-        if (input.Properties.All(x => x.Type != "title"))
+        if (input.Properties.All(x => x.Type != DatabasePropertyTypes.Title))
         {
             var mandatoryProperties = new List<PropertyRequest>()
             {
                 new()
                 {
                     Name = "Name",
-                    Type = "title"
+                    Type = DatabasePropertyTypes.Title
                 }
             };
             input.Properties = input.Properties.Concat(mandatoryProperties);

@@ -52,6 +52,8 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 - **Create/Update page from HTML** creates/updates a page from an HTML file. We recommend using the 'Create page from HTML' action, as it doesn't affect existing content. On the other hand, the 'Update page from HTML' action does affect existing content. Since Notion doesn't allow updating blocks directly, it will first delete all the content of the page and then add it from the HTML file.
 - **Get page string/number/date/boolean/files/multiple property** returns the value of a database entry's property of specific type.
 - **Set page string/number/boolean/files/multiple property** updates the value of a database entry's property of specific type.
+- **Get pages related via property** returns a list of pages related to the specified page via a relation property. Note, that Blackbird must have access to the database where the relation property is defined, otherwise Notion API returns empty results.
+- **Set page relation property** updates the relation property of a page, allowing you to link it to other pages in the specified database.
 - **Set page property as empty**
 - **Create/Get/Archive page**
 
@@ -110,7 +112,15 @@ For now, these types won't be transferred. We are continuously working to improv
 > `Pages and databases cannot be nested inside other blocks. Page or database ('Page name or ID') has parent type 'block_id'. Please move it to the root level.`  
 > To resolve this issue, ensure that all subpages and sub-databases are placed at the root level and are not nested within other blocks.
 
-### Limitation
+## Demo video
+
+Streamline your Notion workflows with Blackbird.io
+
+import { YouTube } from '@astro-community/astro-embed-youtube';
+
+<YouTube id="https://youtu.be/WP7L8AefTMA" />
+
+### Limitations
 
 While improving the Notion app, fixing issues, and enhancing error messages, we identified several API limitations that impact functionality:
 

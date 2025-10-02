@@ -6,13 +6,11 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.PageProperties.Getters;
 
-public class DatePagePropertiesDataHandler( InvocationContext invocationContext, [ActionParameter] PageDatePropertyRequest input)
+public class RelationPagePropertiesDataHandler(InvocationContext invocationContext, [ActionParameter] PageFilesPropertyRequest input)
     : PagePropertiesDataHandler(invocationContext, input.DatabaseId)
 {
-    protected override string[] Types => 
+    protected override string[] Types =>
     [
-        DatabasePropertyTypes.CreatedTime,
-        DatabasePropertyTypes.Date,
-        DatabasePropertyTypes.LastEditedTime,
+        DatabasePropertyTypes.Relation,
     ];
 }

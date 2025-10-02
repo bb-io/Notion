@@ -12,6 +12,6 @@ public class AllDatabasePropertyDataHandler(InvocationContext invocationContext,
     protected override Dictionary<string, string> GetAppropriateProperties(Dictionary<string, JObject> properties)
     {
         return properties
-            .ToDictionary(x => x.Value["id"].ToString(), x => x.Key);
+            .ToDictionary(x => x.Value["id"]?.ToString() ?? string.Empty, x => x.Key);
     }
 }
