@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
 	 <Product>Notion</Product>
 	 <Description>Productivity and note-taking web application</Description>
-	 <Version>1.2.3</Version>
+	 <Version>1.2.4</Version>
 	 <AssemblyName>Apps.NotionOAuth</AssemblyName>
   </PropertyGroup>
   <ItemGroup>

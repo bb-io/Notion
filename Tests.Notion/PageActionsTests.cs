@@ -9,7 +9,7 @@ using Tests.Notion.Base;
 namespace Tests.Notion;
 
 [TestClass]
-public class PageActionsTests :TestBase
+public class PageActionsTests : TestBase
 {
     private PageActions _actions => new(InvocationContext, FileManager);
 
@@ -98,12 +98,17 @@ public class PageActionsTests :TestBase
     public async Task GetPageAsHtml_ValidParameters_ShouldReturnHtmlFile()
     {
         // Arrange
-        var pageId = "21ca9644cf0280e19666c5bbbf0a7e8a";
+        var pageId = "280a9644-cf02-804f-81aa-f8d05ccf0fe8";
         var pageRequest = new PageRequest
         {
             PageId = pageId
         };
-        var htmlRequest = new GetPageAsHtmlRequest();
+        var htmlRequest = new GetPageAsHtmlRequest()
+        {
+            IncludeChildPages = true,
+            IncludeChildDatabases = true,
+            IncludePageProperties = true
+        };
 
         // Act
         var result = await _actions.GetPageAsHtml(pageRequest, htmlRequest);
@@ -116,13 +121,12 @@ public class PageActionsTests :TestBase
     public async Task CreatePageFromHtml_ValidParameters_ShouldCreatePage()
     {
         // Arrange
-        var pageId = "142a9644-cf02-80ca-a899-cf74abef21ec";
-        var htmlFileName = "21ca9644cf0280e19666c5bbbf0a7e8a.html";
+        var htmlFileName = "280a9644-cf02-804f-81aa-f8d05ccf0fe8.html";
         
         var pageRequest = new CreatePageInput
         {
-            PageId = pageId,
             Title = $"Test page: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+            DataSourceId = "280a9644-cf02-8068-956f-000b823ea4d6"
         };
         
         var fileRequest = new FileRequest
@@ -134,6 +138,6 @@ public class PageActionsTests :TestBase
         await _actions.CreatePageFromHtml(pageRequest, fileRequest);
 
         // Assert
-        Console.WriteLine($"Successfully updated page {pageId} with HTML from {htmlFileName}");
+        Console.WriteLine($"Successfully created page with HTML from {htmlFileName}");
     }
 }

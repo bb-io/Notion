@@ -168,7 +168,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             RemoveGroupsFromProperties(database);
             FixStatusProperties(database);
 
-            var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds)
+            var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds, ApiConstants.NotLatestApiVersion)
                 .WithJsonBody(database, JsonConfig.Settings);
             var createdDatabase = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
             await AppendBlockChildren(createdDatabase.Id, children.ToArray());

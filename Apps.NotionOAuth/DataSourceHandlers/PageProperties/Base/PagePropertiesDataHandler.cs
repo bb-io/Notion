@@ -65,7 +65,7 @@ public abstract class PagePropertiesDataHandler(InvocationContext invocationCont
     private async Task<List<DataSourceItem>> FetchDatabasePropertiesAsync(DataSourceContext context)
     {
         var databaseEndpoint = $"{ApiEndpoints.Databases}/{DataBaseId}";
-        var request = new NotionRequest(databaseEndpoint, Method.Get, Creds);
+        var request = new NotionRequest(databaseEndpoint, Method.Get, Creds, ApiConstants.NotLatestApiVersion);
 
         var response = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
 

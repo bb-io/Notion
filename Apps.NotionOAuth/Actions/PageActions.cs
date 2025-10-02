@@ -48,13 +48,19 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     [Action("Create page", Description = "Create a new page")]
     public async Task<PageEntity> CreatePage([ActionParameter] CreatePageInput input)
     {
-        if (input.PageId is not null && input.DatabaseId is not null)
-            throw new PluginMisconfigurationException("Page cannot have two parents, you should specify either parent page or parent database");
-
-        if (input.PageId is null && input.DatabaseId is null)
-            throw new PluginMisconfigurationException("Page must have a parent, you should specify either parent page or parent database");
-
-        var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
+        if (input.PageId is not null && input.DatabaseId is not null && input.DataSourceId is not null)
+        {
+            throw new PluginMisconfigurationException(
+                "Page cannot have more then 1 parents, you should specify either parent page or parent database or parent datasource");
+        }
+        
+        if (input.PageId is null && input.DatabaseId is null && input.DataSourceId is null)
+        {
+            throw new PluginMisconfigurationException(
+                "Page must have a parent, you should specify either parent page or parent database");
+        }
+        var apiVersion = input.DataSourceId == null ? null : ApiConstants.LatestApiVersion;
+        var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds, apiVersion)
             .WithJsonBody(new CreatePageRequest(input), JsonConfig.Settings);
 
         var response = await Client.ExecuteWithErrorHandling<PageResponse>(request);
@@ -62,8 +68,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     }
 
     [Action("Create page from HTML", Description = "Create a new page from HTML")]
-    public async Task<PageEntity> CreatePageFromHtml(
-        [ActionParameter] CreatePageInput input,
+    public async Task<PageEntity> CreatePageFromHtml([ActionParameter] CreatePageInput input,
         [ActionParameter] FileRequest file)
     {
         var page = await CreatePage(input);
@@ -558,6 +563,18 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         else if (block["type"]?.ToString() == "child_database")
         {
             var databaseId = block["id"]!.ToString();
+
+            var dataSourceAction = new DataSourcesActions(InvocationContext);
+            var dataSourceIds = await dataSourceAction.GetDataSourceIdsAsync(databaseId);
+            if (dataSourceIds.Count > 1)
+            {
+                throw new PluginMisconfigurationException(
+                    "The selected database has multiple data sources, which is not supported by this action. " +
+                    "To resolve this, disable the 'Include child databases' option. " +
+                    "If you need to work around this limitation, please contact Blackbird support and we will assist you further."
+                );
+            }
+            
             var databaseAction = new DatabaseActions(InvocationContext);
             var database = await databaseAction.GetDatabaseAsJson(new() { DatabaseId = databaseId });
 

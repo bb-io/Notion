@@ -54,7 +54,7 @@ public class OAuth2TokenService(InvocationContext invocationContext)
     {
         using var httpClient = new HttpClient();
         httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-        httpClient.DefaultRequestHeaders.Add("Notion-Version", ApiConstants.ApiVersion);
+        httpClient.DefaultRequestHeaders.Add("Notion-Version", ApiConstants.NotLatestApiVersion);
 
         var baseAuth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{ApplicationConstants.ClientId}:{ApplicationConstants.ClientSecret}"));
         httpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {baseAuth}");

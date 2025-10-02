@@ -6,7 +6,6 @@ namespace Apps.NotionOAuth.Models.Request.Page;
 
 public class PageOptionalRequest
 {
-    [Display("Page ID")]
-    [DataSource(typeof(PageDataHandler))]
+    [Display("Page ID"), DataSource(typeof(PageDataHandler))]
     public string? PageId { get; set; }
 }

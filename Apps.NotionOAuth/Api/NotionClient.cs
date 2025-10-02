@@ -45,14 +45,14 @@ public class NotionClient() : BlackBirdRestClient(new()
         }
     }
 
-    public async Task<List<T>> SearchAll<T>(AuthenticationCredentialsProvider[] creds, string type, string? query = null)
+    public async Task<List<T>> SearchAll<T>(AuthenticationCredentialsProvider[] creds, string type, string? query = null, string? apiVersion = null)
     {
         string? cursor = null;
 
         var results = new List<T>();
         do
         {
-            var request = new NotionRequest(ApiEndpoints.Search, Method.Post, creds)
+            var request = new NotionRequest(ApiEndpoints.Search, Method.Post, creds, apiVersion)
                 .WithJsonBody(new FilterRequest(type, cursor, query), JsonSettings);
             var response = await ExecuteWithErrorHandling<PaginationResponse<T>>(request);
 

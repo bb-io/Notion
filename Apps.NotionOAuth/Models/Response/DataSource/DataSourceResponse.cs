@@ -1,12 +1,11 @@
-using Apps.NotionOAuth.Models.Entities;
-using Apps.NotionOAuth.Models.Response.DataSource;
+﻿using Apps.NotionOAuth.Models.Entities;
 using Blackbird.Applications.Sdk.Common;
 
-namespace Apps.NotionOAuth.Models.Response.DataBase;
+namespace Apps.NotionOAuth.Models.Response.DataSource;
 
-public class DatabaseResponse
+public class DataSourceResponse
 {
-    [Display("Database ID")]
+    [Display("Data source ID")]
     public string Id { get; set; } = string.Empty;
 
     public DateTime CreatedTime { get; set; }
@@ -14,9 +13,6 @@ public class DatabaseResponse
     public DateTime? LastEditedTime { get; set; }
     
     public IEnumerable<TitleModel>? Title { get; set; }
-
-    [Display("Data sources"), DefinitionIgnore]
-    public List<DataSourceShortResponse> DataSources { get; set; } = new();
     
     public Dictionary<string, PropertyResponse> Properties { get; set; } = new();
     

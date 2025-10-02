@@ -18,6 +18,7 @@ public class UserDataHandler(InvocationContext invocationContext)
         return response
             .Where(x => context.SearchString is null ||
                         x.Name.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase))
+            .DistinctBy(x => x.Id)
             .Select(x => new DataSourceItem(x.Id, x.Name));
     }
 }

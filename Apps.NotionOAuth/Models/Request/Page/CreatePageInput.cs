@@ -15,4 +15,7 @@ public class CreatePageInput
     [Display("Parent database ID")]
     [DataSource(typeof(DatabaseDataHandler))]
     public string? DatabaseId { get; set; }
+    
+    [Display("Parent datasource ID"), DataSource(typeof(DataSourceDataHandler))]
+    public string? DataSourceId { get; set; }
 }
