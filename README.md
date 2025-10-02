@@ -9,6 +9,7 @@ Blackbird is the new automation backbone for the language technology industry. B
 Notion is a note-taking and idea-organizing platform. This Notion application primarily centers around page and database management.  
   
  ## Before setting up
+
  Before you can connect you need to make sure that:
  - You have a Notion account
  - You have sufficient permissions in the workspace you want to connect Blackbird with.
@@ -48,7 +49,7 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 ### Pages
 
 - **Search pages** returns a list of all pages in the workspace. You can filter the list by create/edited time.
-- **Get page as HTML** returns specified page's content as an HTML file.
+- **Get page as HTML** returns the specified page’s content as an HTML file. Please note that if your page embeds a database (and you specified 'Include child databases' to true) with more than one data source, this action will fail. If you need this functionality, please contact Blackbird support, and we will consider adding it.
 - **Create/Update page from HTML** creates/updates a page from an HTML file. We recommend using the 'Create page from HTML' action, as it doesn't affect existing content. On the other hand, the 'Update page from HTML' action does affect existing content. Since Notion doesn't allow updating blocks directly, it will first delete all the content of the page and then add it from the HTML file.
 - **Get page string/number/date/boolean/files/multiple property** returns the value of a database entry's property of specific type.
 - **Set page string/number/boolean/files/multiple property** updates the value of a database entry's property of specific type.
@@ -57,7 +58,7 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 - **Set page property as empty**
 - **Create/Get/Archive page**
 
-> For the 'Create page' and 'Create page from HTML' actions, you must specify the parent page or database where the new page will be created. If not specified, the action will fail with an error.
+> For the 'Create page' and 'Create page from HTML' actions, you must specify the parent page, datasource or database where the new page will be created. If not specified, the action will fail with an error.
 
 ### Users
 
