@@ -26,6 +26,7 @@ public abstract class DatabasePropertiesDataHandler(InvocationContext invocation
 
         return GetAppropriateProperties(response.Properties)
             .Where(x => x.Value.Contains(context.SearchString ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+            .DistinctBy(x => x.Key)
             .Select(x => new DataSourceItem(x.Key, x.Value));
     }
 

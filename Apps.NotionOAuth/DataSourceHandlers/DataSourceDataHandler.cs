@@ -32,6 +32,7 @@ public class DataSourceDataHandler(InvocationContext invocationContext, [ActionP
         return items
             .Select(x => new DataSourceEntity(x))
             .OrderByDescending(x => x.CreatedTime)
+            .DistinctBy(x => x.Id)
             .Select(x => new DataSourceItem(x.Id, x.Title));
     }
 }

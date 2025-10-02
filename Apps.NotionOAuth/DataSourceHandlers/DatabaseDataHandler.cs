@@ -16,6 +16,7 @@ public class DatabaseDataHandler(InvocationContext invocationContext)
         return items
             .Select(x => new DatabaseEntity(x))
             .OrderByDescending(x => x.CreatedTime)
+            .DistinctBy(x => x.Id)
             .Select(x => new DataSourceItem(x.Id, x.Title));
     }
 }
