@@ -548,13 +548,30 @@ public static class NotionHtmlParser
             .ForEach(x => x.Value = JValue.CreateNull());
     }
 
-    private static bool BlockIsUntranslatable(string type, JToken? content)
+    private static bool BlockIsUntranslatable(string? type, JToken? content)
     {
-        if (content != null && type == "image" && content["type"]!.ToString() != "external")
-            return true;
+        if (string.IsNullOrEmpty(type) || content is null)
+            return false;
 
-        if (content != null && type == "callout" && content["icon"]?["type"]?.ToString() == "file")
-            (content as JObject)!.Remove("icon");
+        if (content.Type != JTokenType.Object)
+            return false;
+
+        var obj = (JObject)content;
+
+        if (type == "image")
+        {
+            var imageType = (obj["type"] as JValue)?.ToString();
+            if (!string.Equals(imageType, "external", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        if (type == "callout")
+        {
+            var iconObj = obj["icon"] as JObject;
+            var iconType = iconObj?["type"]?.ToString();
+            if (iconType == "file")
+                obj.Remove("icon");
+        }
 
         return false;
     }

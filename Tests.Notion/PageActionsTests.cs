@@ -98,7 +98,7 @@ public class PageActionsTests : TestBase
     public async Task GetPageAsHtml_ValidParameters_ShouldReturnHtmlFile()
     {
         // Arrange
-        var pageId = "280a9644-cf02-804f-81aa-f8d05ccf0fe8";
+        var pageId = "2a2efdee-ad05-805c-8eb4-c37e3d18fbcb";
         var pageRequest = new PageRequest
         {
             PageId = pageId
