@@ -25,6 +25,7 @@ using RestSharp;
 using Apps.NotionOAuth.Extensions;
 using Blackbird.Applications.Sdk.Common.Exceptions;
 using Newtonsoft.Json;
+using System.Globalization;
 
 namespace Apps.NotionOAuth.Actions;
 
@@ -233,19 +234,26 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     public async Task<DatePropertyResponse> GetDateProperty([ActionParameter] PageDatePropertyRequest input)
     {
         var response = await GetPageProperty(input.PageId, input.PropertyId);
+        var type = (string?)response["type"];
 
         var value = response["type"]!.ToString() switch
         {
-            DatabasePropertyTypes.CreatedTime => response["created_time"]!.ToObject<DateTime>(),
-            DatabasePropertyTypes.Date => response["date"]!["start"]!.ToObject<DateTime>(),
-            DatabasePropertyTypes.LastEditedTime => response["last_edited_time"]!.ToObject<DateTime>(),
-            _ => throw new ArgumentException("Given ID does not stand for a date value property")
+            DatabasePropertyTypes.CreatedTime => ToDateTimeSafe(response["created_time"]),
+            DatabasePropertyTypes.Date => ReadDateStart(response["date"]),
+            DatabasePropertyTypes.LastEditedTime => ToDateTimeSafe(response["last_edited_time"]),
+            DatabasePropertyTypes.Formula => (string?)response["formula"]?["type"] == "date"
+                                ? ReadDateStart(response["formula"]?["date"])
+                                : null,
+            DatabasePropertyTypes.Rollup => ParseRollupDate(response["rollup"]),
+            _ => throw new PluginApplicationException("Given ID does not stand for a date value property")
         };
 
-        return new()
+        if (value is null)
         {
-            PropertyValue = value
-        };
+            throw new PluginApplicationException("Given property is not a date or the date is empty.");
+        }
+
+        return new DatePropertyResponse { PropertyValue = value };
     }
 
     [Action("Get page boolean property", Description = "Get value of a boolean page property")]
@@ -535,6 +543,60 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         }
 
         return allBlocks;
+    }
+
+    private static DateTime? ReadDateStart(JToken? dateToken)
+    {
+        var start = dateToken?["start"]?.ToString();
+        if (string.IsNullOrWhiteSpace(start))
+            return null;
+
+        if (DateTime.TryParse(start, CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dt))
+            return dt;
+
+        return null;
+    }
+
+    private static DateTime? ToDateTimeSafe(JToken? token)
+    {
+        var s = token?.ToString();
+        if (string.IsNullOrWhiteSpace(s))
+            return null;
+
+        if (DateTime.TryParse(s, CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dt))
+            return dt;
+
+        return null;
+    }
+
+    private static DateTime? ParseRollupDate(JToken? rollup)
+    {
+        var rType = (string?)rollup?["type"];
+        if (rType == "date")
+        {
+            return ReadDateStart(rollup?["date"]);
+        }
+
+        if (rType == "array")
+        {
+            var arr = rollup?["array"] as JArray;
+            if (arr != null)
+            {
+                foreach (var item in arr)
+                {
+                    var itType = (string?)item?["type"];
+                    if (itType == "date")
+                    {
+                        var dt = ReadDateStart(item?["date"]);
+                        if (dt != null) return dt;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private async Task ProcessBlock(JObject block, GetPageAsHtmlRequest? pageAsHtmlRequest,
