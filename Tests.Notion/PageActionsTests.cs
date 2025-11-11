@@ -32,6 +32,24 @@ public class PageActionsTests : TestBase
     }
 
     [TestMethod]
+    public async Task GetDateProperty_ValidParameters_ShouldReturnProperty()
+    {
+        // Arrange
+        var input = new PageDatePropertyRequest
+        {
+            PageId = "2a2efdee-ad05-805c-8eb4-c37e3d18fbcb",
+            DatabaseId = "21fefdee-ad05-802d-bfbc-e064ddc481fd",
+            PropertyId = "hLss",
+        };
+
+        // Act
+        var page = await _actions.GetDateProperty(input);
+
+        // Assert
+        Console.WriteLine($"String property: '{page.PropertyValue}'");
+    }
+
+    [TestMethod]
     public async Task GetStringProperty_EmptyValue_ShouldReturnEmptyString()
     {
         // Arrange
