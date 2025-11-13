@@ -493,6 +493,13 @@ public static class NotionHtmlParser
         if (node.Attributes[ContentParamsAttr] != null)
             contextParams = JObject.Parse(node.Attributes[ContentParamsAttr]!.DeEntitizeValue);
 
+        if (string.Equals(type, "callout", StringComparison.OrdinalIgnoreCase) && (!contextParams.TryGetValue("icon", out var iconToken) || iconToken.Type == JTokenType.Null))
+        {
+            contextParams.Remove("icon");
+        }
+
+        RemoveNullsDeep(contextParams);
+
         var content = new JObject(contextParams)
         {
             { DatabasePropertyTypes.RichText, JArray.Parse(JsonConvert.SerializeObject(richText, JsonConfig.Settings)) }
@@ -524,6 +531,29 @@ public static class NotionHtmlParser
         }
 
         return jObject;
+    }
+
+    public static void RemoveNullsDeep(JToken token)
+    {
+        if (token is JObject obj)
+        {
+            foreach (var prop in obj.Properties().ToList())
+            {
+                if (prop.Value == null || prop.Value.Type == JTokenType.Null)
+                {
+                    prop.Remove();
+                }
+                else
+                {
+                    RemoveNullsDeep(prop.Value);
+                }
+            }
+        }
+        else if (token is JArray arr)
+        {
+            foreach (var item in arr.ToList())
+                RemoveNullsDeep(item);
+        }
     }
 
     private static AnnotationsModel? ParseAnnotations(HtmlAttributeCollection attr)

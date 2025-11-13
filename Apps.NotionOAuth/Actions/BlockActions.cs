@@ -6,6 +6,7 @@ using Apps.NotionOAuth.Models.Request.Block;
 using Apps.NotionOAuth.Models.Response.Block;
 using Apps.NotionOAuth.Models.Response.DataBase;
 using Apps.NotionOAuth.Models.Response.Page;
+using Apps.NotionOAuth.Utils;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
@@ -142,6 +143,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             var pageResponse = await Client.ExecuteWithErrorHandling<PageResponse>(request);
             if (children.Length > 0)
             {
+                FlattenListItemsDeepInPlace(new JArray(children));
                 await AppendBlockChildren(pageResponse.Id, children.ToArray());
             }
         }
@@ -171,20 +173,121 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds, ApiConstants.NotLatestApiVersion)
                 .WithJsonBody(database, JsonConfig.Settings);
             var createdDatabase = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
+
+            FlattenListItemsDeepInPlace(new JArray(children));
             await AppendBlockChildren(createdDatabase.Id, children.ToArray());
         }
     }
 
     private async Task ProcessBlocks(string blockId, List<JObject> blockChunk)
     {
+        SanitizeBlocks(blockChunk);
+        FlattenListItemsDeepInPlace(new JArray(blockChunk));
+
         var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
         var request = new NotionRequest(endpoint, Method.Patch, Creds)
-            .WithJsonBody(new ChildrenRequest
-            {
-                Children = blockChunk.ToArray()
-            }, JsonConfig.Settings);
+            .WithJsonBody(new ChildrenRequest { Children = blockChunk.ToArray() }, JsonConfig.Settings);
 
         await Client.ExecuteWithErrorHandling(request);
+    }
+
+    private static readonly HashSet<string> ListItemTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "bulleted_list_item",
+        "numbered_list_item"
+    };
+
+    private void FlattenListItemsDeepInPlace(JToken node)
+    {
+        if (node is JArray arr)
+        {
+            ProcessChildrenArray(arr);
+            foreach (var el in arr)
+                FlattenListItemsDeepInPlace(el);
+            return;
+        }
+
+        if (node is JObject obj)
+        {
+            var type = obj["type"]?.ToString();
+            if (!string.IsNullOrEmpty(type) && obj[type] is JObject content && content["children"] is JArray typedChildren)
+            {
+                ProcessChildrenArray(typedChildren);
+                FlattenListItemsDeepInPlace(typedChildren);
+            }
+
+            if (obj["children"] is JArray directChildren)
+            {
+                ProcessChildrenArray(directChildren);
+                FlattenListItemsDeepInPlace(directChildren);
+            }
+
+            return;
+        }
+    }
+
+    private void ProcessChildrenArray(JArray children)
+    {
+        for (int i = 0; i < children.Count; i++)
+        {
+            if (children[i] is not JObject item) continue;
+
+            var type = item["type"]?.ToString();
+            if (type is null) continue;
+
+            if (ListItemTypes.Contains(type) && item[type] is JObject content
+                && content.TryGetValue("children", out var chTok) && chTok is JArray liChildren && liChildren.Count > 0)
+            {
+                content.Remove("children");
+
+                FlattenListItemsDeepInPlace(liChildren);
+                var insertAt = i + 1;
+                foreach (var child in liChildren.OfType<JObject>())
+                {
+                    children.Insert(insertAt, child);
+                    insertAt++;
+                }
+
+                i = insertAt - 1;
+            }
+        }
+    }
+
+    private void FlattenListItemChildren(List<JObject> blocks)
+    {
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            var b = blocks[i];
+            var type = b["type"]?.ToString();
+            if (type is null) continue;
+
+            if (ListItemTypes.Contains(type) && b[type] is JObject content &&
+                content.TryGetValue("children", out var childrenTok) && childrenTok is JArray children && children.Count > 0)
+            {
+                content.Remove("children");
+
+                var childBlocks = children.OfType<JObject>().ToList();
+
+                FlattenListItemChildren(childBlocks);
+
+                blocks.InsertRange(i + 1, childBlocks);
+                i += childBlocks.Count;
+            }
+        }
+    }
+
+    private void SanitizeBlocks(IEnumerable<JObject> blocks)
+    {
+        foreach (var b in blocks)
+        {
+            if (string.Equals(b["type"]?.ToString(), "callout", StringComparison.OrdinalIgnoreCase))
+            {
+                var callout = b["callout"] as JObject;
+                if (callout != null && (callout["icon"] == null || callout["icon"].Type == JTokenType.Null))
+                    callout.Remove("icon");
+            }
+            NotionHtmlParser.RemoveNullsDeep(b);
+        }
     }
 
     private void RemoveUnnecessaryProperties(JObject jObject, params string[] properties)
