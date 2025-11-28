@@ -2,7 +2,6 @@ using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.DataSourceHandlers.DatabaseProperties.Base;
 using Apps.NotionOAuth.Models.Request.DataBase;
 using Apps.NotionOAuth.Models.Request.DataSource;
-using Apps.NotionOAuth.Utils;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Newtonsoft.Json.Linq;
@@ -29,7 +28,8 @@ public class StringDatabasePropertyDataHandler(InvocationContext invocationConte
     protected override Dictionary<string, string> GetAppropriateProperties(Dictionary<string, JObject> properties)
     {
         return properties
-            .Where(x => Types.Contains(x.Value["type"]!.ToString()))
-            .ToDictionary(x => PagePropertyParser.ToString(x.Value), x => x.Key);
+            .Where(prop => Types.Contains(prop.Value["type"]?.ToString()))
+            .Where(prop => prop.Value["id"]?.ToString() != null)
+            .ToDictionary(prop => prop.Value["id"]?.ToString() ?? string.Empty, prop => prop.Key);
     }
 }

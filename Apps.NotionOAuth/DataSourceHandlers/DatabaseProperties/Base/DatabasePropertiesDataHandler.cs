@@ -25,7 +25,7 @@ public abstract class DatabasePropertiesDataHandler(InvocationContext invocation
             request = new NotionRequest($"{ApiEndpoints.DataSources}/{DataSourceId}", Method.Get, Creds, ApiConstants.LatestApiVersion);
         else
             throw new Exception("Please provide 'Database ID' or 'Datasource ID' input first.");
-        
+
         var response = await Client.ExecuteWithErrorHandling<PropertiesResponse>(request);
 
         return GetAppropriateProperties(response.Properties)
