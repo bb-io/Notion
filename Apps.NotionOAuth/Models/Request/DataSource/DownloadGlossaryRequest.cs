@@ -7,27 +7,23 @@ namespace Apps.NotionOAuth.Models.Request.DataSource;
 
 public class DownloadGlossaryRequest
 {
-    [Display("Data source ID")]
-    [DataSource(typeof(DataSourceDataHandler))]
-    public string DataSourceId { get; set; } = string.Empty;
-
     [Display("Properties as target languages")]
-    [DataSource(typeof(AllDatabasePropertyDataHandler))]
+    [DataSource(typeof(StringDatabasePropertyDataHandler))]
     public List<string>? PropertiesAsTargetLanguages { get; set; }
 
     [Display("Default locale", Description = "Title of the page will became a term. This option defines default locale. `en` by default.")]
     public string? DefaultLocale { get; set; }
 
     [Display("Property for term definition")]
-    [DataSource(typeof(AllDatabasePropertyDataHandler))]
+    [DataSource(typeof(StringDatabasePropertyDataHandler))]
     public string? DefinitionProperty { get; set; }
 
     [Display("Property for term note")]
-    [DataSource(typeof(AllDatabasePropertyDataHandler))]
+    [DataSource(typeof(StringDatabasePropertyDataHandler))]
     public string? NoteProperty { get; set; }
 
     [Display("Property for term domain")]
-    [DataSource(typeof(AllDatabasePropertyDataHandler))]
+    [DataSource(typeof(StringDatabasePropertyDataHandler))]
     public string? DomainProperty { get; set; }
 
     [Display("Glossary title")]

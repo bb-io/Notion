@@ -23,13 +23,14 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
 {
     [Action("Download glossary", Description = "Downloads database pages into an interoperable glosary.")]
     public async Task<DownloadGlossaryResponse> DownloadGlossary(
+        [ActionParameter] DataSourceRequest dataSource,
         [ActionParameter] DownloadGlossaryRequest input)
     {
         input.DefaultLocale ??= "en";
         input.Title ??= "Glossary";
         input.SourceDescription ??= $"Glossary export from Notion on {DateTime.Now.ToUniversalTime():F} (UTC)";
 
-        var dataSourceEndpoint = $"{ApiEndpoints.DataSources}/{input.DataSourceId}/query";
+        var dataSourceEndpoint = $"{ApiEndpoints.DataSources}/{dataSource.DataSourceId}/query";
         var dataSourceRequest = new NotionRequest(dataSourceEndpoint, Method.Post, Creds);
         var dataSourceResponse = await Client.PaginateWithBody<PageResponse>(dataSourceRequest);
 

@@ -14,13 +14,14 @@ public class GlossaryActionsTests : TestBase
     public async Task DownloadGlossary_NoOptionalInputs_works()
     {
         // Arrange
-        var input = new DownloadGlossaryRequest
+        var dataSource = new DataSourceRequest()
         {
-            DataSourceId = "2b8a9644-cf02-80e7-abed-000b68742d53",
+            DataSourceId = "2b8a9644-cf02-80e7-abed-000b68742d53"
         };
+        var input = new DownloadGlossaryRequest();
 
         // Act
-        var result = await _actions.DownloadGlossary(input);
+        var result = await _actions.DownloadGlossary(dataSource, input);
 
         // Assert
         Assert.AreEqual("Glossary.tbx", result.Glossary.Name);
@@ -30,9 +31,12 @@ public class GlossaryActionsTests : TestBase
     public async Task DownloadGlossary_AllInputs_works()
     {
         // Arrange
+        var dataSource = new DataSourceRequest()
+        {
+            DataSourceId = "2b8a9644-cf02-80e7-abed-000b68742d53"
+        };
         var input = new DownloadGlossaryRequest
         {
-            DataSourceId = "2b8a9644-cf02-80e7-abed-000b68742d53",
             PropertiesAsTargetLanguages = ["yX%3BK", "%7C%3Do%3F", "UoW%40"], // pt-BR, es, de
             DefaultLocale = "en_US",
             DefinitionProperty = "VO%5Dw",
@@ -43,7 +47,7 @@ public class GlossaryActionsTests : TestBase
         };
 
         // Act
-        var result = await _actions.DownloadGlossary(input);
+        var result = await _actions.DownloadGlossary(dataSource, input);
 
         // Assert
         Assert.AreEqual("Glossary Page (all inputs).tbx", result.Glossary.Name);

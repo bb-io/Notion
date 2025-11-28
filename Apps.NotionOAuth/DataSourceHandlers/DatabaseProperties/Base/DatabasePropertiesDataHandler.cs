@@ -9,21 +9,22 @@ using RestSharp;
 
 namespace Apps.NotionOAuth.DataSourceHandlers.DatabaseProperties.Base;
 
-public abstract class DatabasePropertiesDataHandler(InvocationContext invocationContext, string dataBaseId)
+public abstract class DatabasePropertiesDataHandler(InvocationContext invocationContext, string dataBaseId, string dataSourceId)
     : NotionInvocable(invocationContext), IAsyncDataSourceItemHandler
 {
     private string DataBaseId { get; set; } = dataBaseId;
+    private string DataSourceId { get; set; } = dataSourceId;
 
     public async Task<IEnumerable<DataSourceItem>> GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(DataBaseId))
+        var endpoint = (DataBaseId, DataSourceId) switch
         {
-            throw new Exception("Please provide 'Database ID' input first.");
-        }
+            (var db, _) when !string.IsNullOrWhiteSpace(db) => $"{ApiEndpoints.Databases}/{db}",
+            (_, var ds) when !string.IsNullOrWhiteSpace(ds) => $"{ApiEndpoints.DataSources}/{ds}",
+            _ => throw new Exception("Please provide 'Database ID' or 'Datasource ID' input first.")
+        };
 
-        var endpoint = $"{ApiEndpoints.Databases}/{DataBaseId}";
         var request = new NotionRequest(endpoint, Method.Get, Creds, ApiConstants.NotLatestApiVersion);
-
         var response = await Client.ExecuteWithErrorHandling<PropertiesResponse>(request);
 
         return GetAppropriateProperties(response.Properties)
