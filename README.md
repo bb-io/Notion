@@ -65,6 +65,10 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 - **Search users** returns a list of users belonging to the workspace.
 - **Get users** returns details about specified user.
 
+### Glossaries
+
+- **Download glossary** downloads data source pages into an interoperable glosary.
+
 ## Events
 
 ### Pages
