@@ -17,14 +17,15 @@ public abstract class DatabasePropertiesDataHandler(InvocationContext invocation
 
     public async Task<IEnumerable<DataSourceItem>> GetDataAsync(DataSourceContext context, CancellationToken cancellationToken)
     {
-        var endpoint = (DataBaseId, DataSourceId) switch
-        {
-            (var db, _) when !string.IsNullOrWhiteSpace(db) => $"{ApiEndpoints.Databases}/{db}",
-            (_, var ds) when !string.IsNullOrWhiteSpace(ds) => $"{ApiEndpoints.DataSources}/{ds}",
-            _ => throw new Exception("Please provide 'Database ID' or 'Datasource ID' input first.")
-        };
+        NotionRequest request;
 
-        var request = new NotionRequest(endpoint, Method.Get, Creds, ApiConstants.NotLatestApiVersion);
+        if (!string.IsNullOrWhiteSpace(DataBaseId))
+            request = new NotionRequest($"{ApiEndpoints.Databases}/{DataBaseId}", Method.Get, Creds, ApiConstants.NotLatestApiVersion);
+        else if (!string.IsNullOrWhiteSpace(DataSourceId))
+            request = new NotionRequest($"{ApiEndpoints.DataSources}/{DataSourceId}", Method.Get, Creds, ApiConstants.LatestApiVersion);
+        else
+            throw new Exception("Please provide 'Database ID' or 'Datasource ID' input first.");
+        
         var response = await Client.ExecuteWithErrorHandling<PropertiesResponse>(request);
 
         return GetAppropriateProperties(response.Properties)
