@@ -15,15 +15,10 @@ public class GlossaryActionsTests : TestBase
         // Arrange
         var dataSource = new DataSourceRequest()
         {
-            DataSourceId = "cdc4b903-4226-476f-bed2-67c635cfac2a",
+            DataSourceId = "2d887f55-25f0-80ec-8fe5-000b81251270",
         };
         var input = new DownloadGlossaryRequest
         {
-            NoteProperty = "uQDf",
-            DefaultLocale = "en-US",
-            DomainProperty = "Kqj%7C",
-            DefinitionProperty = "b%5EAC",
-            PropertiesAsTargetLanguages = ["DCWl", "%40%60%7CV"]
         };
 
         // Act
@@ -39,23 +34,21 @@ public class GlossaryActionsTests : TestBase
         // Arrange
         var dataSource = new DataSourceRequest()
         {
-            DataSourceId = "2b8a9644-cf02-80e7-abed-000b68742d53"
+            DataSourceId = "2d887f55-25f0-80ec-8fe5-000b81251270",
         };
         var input = new DownloadGlossaryRequest
         {
-            PropertiesAsTargetLanguages = ["yX%3BK", "%7C%3Do%3F", "UoW%40"], // pt-BR, es, de
-            DefaultLocale = "en_US",
-            DefinitionProperty = "VO%5Dw",
-            NoteProperty = "%3FFhs",
-            DomainProperty = "GZoJ",
-            Title = "Glossary Page (all inputs)",
-            SourceDescription = "This is a sample glossary."
+            PropertiesAsTargetLanguages = ["mFyX", "F%3EmZ"],
+            Title = "Glossary Page",
+            SourceDescription = "This is a sample glossary.",
+            FilterFields = ["%3Ea%60b", "%3Ea%60b", "SPMh"],
+            FilterValues = ["Approved", "Draft", "123@gmail.com"]
         };
 
         // Act
         var result = await _actions.DownloadGlossary(dataSource, input);
 
         // Assert
-        Assert.AreEqual("Glossary Page (all inputs).tbx", result.Glossary.Name);
+        Assert.AreEqual("Glossary Page.tbx", result.Glossary.Name);
     }
 }
