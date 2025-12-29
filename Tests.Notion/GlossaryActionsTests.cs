@@ -1,7 +1,6 @@
-﻿using Apps.NotionOAuth.Actions;
+﻿using Tests.Notion.Base;
+using Apps.NotionOAuth.Actions;
 using Apps.NotionOAuth.Models.Request.DataSource;
-using Apps.NotionOAuth.Models.Request.Page.Properties.Getter;
-using Tests.Notion.Base;
 
 namespace Tests.Notion;
 
@@ -16,9 +15,16 @@ public class GlossaryActionsTests : TestBase
         // Arrange
         var dataSource = new DataSourceRequest()
         {
-            DataSourceId = "2b8a9644-cf02-80e7-abed-000b68742d53"
+            DataSourceId = "cdc4b903-4226-476f-bed2-67c635cfac2a",
         };
-        var input = new DownloadGlossaryRequest();
+        var input = new DownloadGlossaryRequest
+        {
+            NoteProperty = "uQDf",
+            DefaultLocale = "en-US",
+            DomainProperty = "Kqj%7C",
+            DefinitionProperty = "b%5EAC",
+            PropertiesAsTargetLanguages = ["DCWl", "%40%60%7CV"]
+        };
 
         // Act
         var result = await _actions.DownloadGlossary(dataSource, input);

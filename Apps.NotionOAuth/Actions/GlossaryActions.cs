@@ -44,11 +44,12 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
             var languageSections = new List<GlossaryLanguageSection>();
 
             // Title of the page as source language
-            var title = page.Properties?.Values
+            var rawTitle = page.Properties?.Values
                 .FirstOrDefault(p => p["id"]?.ToString() == "title")?
                 .SelectToken("title[0].plain_text")?
                 .ToString()
                 ?? throw new Exception("[Download glossary] Page title was not found.");
+            var title = XmlHelper.SanitizeForXml(rawTitle);
 
             languageSections.Add(new(input.DefaultLocale, [new(title)]));
 
@@ -56,22 +57,22 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
             foreach (var propertyId in input.PropertiesAsTargetLanguages ?? [])
             {
                 if (TryGetPropertyNameValue(page, propertyId, out var translation, out var locale))
-                    languageSections.Add(new(locale, [new(translation)]));
+                    languageSections.Add(new(locale, [new(XmlHelper.SanitizeForXml(translation))]));
             }
 
             // Create glossary entry
             var entry = new GlossaryConceptEntry(page.Id, languageSections);
 
             if (TryGetPropertyNameValue(page, input.DefinitionProperty, out var definition, out var _))
-                entry.Definition = definition;
+                entry.Definition = XmlHelper.SanitizeForXml(definition);
 
             if (TryGetPropertyNameValue(page, input.DomainProperty, out var domain, out var _))
-                entry.Domain = domain;
+                entry.Domain = XmlHelper.SanitizeForXml(domain);
 
             if (TryGetPropertyNameValue(page, input.NoteProperty, out var note, out var _))
             {
                 entry.Notes ??= [];
-                entry.Notes.Add(note);
+                entry.Notes.Add(XmlHelper.SanitizeForXml(note));
             }
 
             glossaryConceptEntries.Add(entry);
