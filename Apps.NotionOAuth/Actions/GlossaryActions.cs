@@ -26,6 +26,17 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
         [ActionParameter] DataSourceRequest dataSource,
         [ActionParameter] DownloadGlossaryRequest input)
     {
+        var fieldsCount = input.FilterFields?.Count ?? 0;
+        var valuesCount = input.FilterValues?.Count ?? 0;
+
+        if (fieldsCount != valuesCount)
+        {
+            throw new PluginMisconfigurationException(
+                $"You provided {fieldsCount} filter fields but {valuesCount} filter values. " +
+                $"These lists must be the same length."
+            );
+        }
+
         input.DefaultLocale ??= "en";
         input.Title ??= "Glossary";
         input.SourceDescription ??= $"Glossary export from Notion on {DateTime.Now.ToUniversalTime():F} (UTC)";
@@ -39,8 +50,40 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
 
         var glossaryConceptEntries = new List<GlossaryConceptEntry>();
 
+        var filterGroups = (input.FilterFields ?? [])
+            .Zip(input.FilterValues ?? [], (field, value) => new { FieldId = field, Value = value })
+            .GroupBy(x => x.FieldId)
+            .ToList();
+
         foreach (var page in dataSourceResponse)
         {
+            bool matchesFilters = false;
+
+            var filterFields = input.FilterFields?.ToList() ?? [];
+            var filterValues = input.FilterValues?.ToList() ?? [];
+
+            if (filterFields.Count == 0)
+                matchesFilters = true;
+            else
+            {
+                for (int i = 0; i < filterFields.Count; i++)
+                {
+                    var fieldId = filterFields[i];
+                    var expectedValue = filterValues.ElementAtOrDefault(i);
+
+                    if (TryGetPropertyNameValue(page, fieldId, out var actualValue, out var _))
+                    {
+                        if (actualValue.Equals(expectedValue, StringComparison.OrdinalIgnoreCase))
+                        {
+                            matchesFilters = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!matchesFilters) continue;
+
             var languageSections = new List<GlossaryLanguageSection>();
 
             // Title of the page as source language

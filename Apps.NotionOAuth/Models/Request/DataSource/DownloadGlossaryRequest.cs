@@ -1,7 +1,6 @@
-﻿using Apps.NotionOAuth.DataSourceHandlers;
-using Apps.NotionOAuth.DataSourceHandlers.DatabaseProperties;
-using Blackbird.Applications.Sdk.Common;
+﻿using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Dynamic;
+using Apps.NotionOAuth.DataSourceHandlers.DatabaseProperties;
 
 namespace Apps.NotionOAuth.Models.Request.DataSource;
 
@@ -31,4 +30,11 @@ public class DownloadGlossaryRequest
 
     [Display("Glossary source description")]
     public string? SourceDescription { get; set; }
+
+    [Display("Filter fields", Description = "List of properties to filter by. Input the filter values in the same order as these fields")]
+    [DataSource(typeof(StringDatabasePropertyDataHandler))]
+    public List<string>? FilterFields { get; set; }
+
+    [Display("Filter values")]
+    public List<string>? FilterValues { get; set; }
 }
