@@ -100,7 +100,11 @@ public class NotionClient() : BlackBirdRestClient(new()
         {
             if (cursor is not null)
             {
-                if(body != null)
+                var existingBody = request.Parameters.FirstOrDefault(p => p.Type == ParameterType.RequestBody);
+                if (existingBody != null)
+                    request.Parameters.RemoveParameter(existingBody);
+
+                if (body != null)
                 {
                     body["start_cursor"] = cursor;
                     request.WithJsonBody(body);
