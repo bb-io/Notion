@@ -139,12 +139,12 @@ public class PageActionsTests : TestBase
     public async Task CreatePageFromHtml_ValidParameters_ShouldCreatePage()
     {
         // Arrange
-        var htmlFileName = "2a2efdee-ad05-805c-8eb4-c37e3d18fbcb.html";
+        var htmlFileName = "2e6efdee-ad05-8076-9461-cbba4a2d8056.html";
         
         var pageRequest = new CreatePageInput
         {
             Title = $"Test page: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
-            PageId= "0646c37d-0d05-4b06-904b-62d7e2a9dacf"
+            DatabaseId= "e5585fd5-8491-4cf1-9e1d-6ddfa93d2761"
         };
         
         var fileRequest = new FileRequest
