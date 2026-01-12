@@ -623,43 +623,36 @@ public static class NotionHtmlParser
     private static JObject ParseRowTableNode(HtmlNode node)
     {
         var cells = node.ChildNodes
-            .Where(x => x.Name == "p")
-            .Select(x => x.InnerText)
-            .ToArray();
+       .Where(x => x.Name == "p")
+       .Select(x => x.InnerText)
+       .ToArray();
 
         var tableRow = JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue);
         var tableCells = tableRow["table_row"]!["cells"]!.ToObject<List<List<JObject>>>()!;
 
         for (int i = 0; i < cells.Length; i++)
         {
-            if (i < tableCells.Count && tableCells[i].Count > 0)
-            {
-                var firstCell = tableCells[i][0];
+            if (i >= tableCells.Count)
+                continue;
 
-                // Update the annotated text content
-                firstCell["text"]!["content"] = cells[i];
-                firstCell["plain_text"] = cells[i];
-            }
-            else
-            {
-                // —Optionally— insert a new “empty” cell instead of skipping:
-                // var newCell = new JObject
-                // {
-                //     ["type"] = "text",
-                //     ["text"] = new JObject { ["content"] = cells[i], ["link"] = null },
-                //     ["annotations"] = new JObject {
-                //         ["bold"] = false, ["italic"] = false,
-                //         ["strikethrough"] = false, ["underline"] = false,
-                //         ["code"] = false, ["color"] = "default"
-                //     },
-                //     ["plain_text"] = cells[i],
-                //     ["href"] = null
-                // };
-                // tableCells.Insert(i, new List<JObject> { newCell });
+            var cellItems = tableCells[i];
+            if (cellItems == null || cellItems.Count == 0)
+                continue;
 
-                // For now, we simply skip empty JSON cells to avoid the exception
+            var textCell = cellItems.FirstOrDefault(x => x?["type"]?.ToString() == "text");
+            if (textCell == null)
+            {
                 continue;
             }
+
+            if (textCell["text"] is not JObject textObj)
+            {
+                textObj = new JObject { ["content"] = "", ["link"] = null };
+                textCell["text"] = textObj;
+            }
+
+            textObj["content"] = cells[i];
+            textCell["plain_text"] = cells[i];
         }
 
         tableRow["table_row"]!["cells"] = JArray.FromObject(tableCells);
