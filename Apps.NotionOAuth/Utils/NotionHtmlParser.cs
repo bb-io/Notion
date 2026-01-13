@@ -39,8 +39,9 @@ public static class NotionHtmlParser
             .ChildNodes
             .Where(x => x.Name != "#text")
             .ToArray();
+
         var jObjects = translatableNodes.Select(MapNodeToBlockChild).ToList();
-        
+
         var extractedPageId = ExtractAndNormalizePageId(html);
         var blocksById = jObjects.Where(x => x["id"] != null)
             .ToDictionary(x => NormalizeId(x["id"]!.ToString()));
@@ -493,7 +494,8 @@ public static class NotionHtmlParser
         if (node.Attributes[ContentParamsAttr] != null)
             contextParams = JObject.Parse(node.Attributes[ContentParamsAttr]!.DeEntitizeValue);
 
-        if (string.Equals(type, "callout", StringComparison.OrdinalIgnoreCase) && (!contextParams.TryGetValue("icon", out var iconToken) || iconToken.Type == JTokenType.Null))
+        if (string.Equals(type, "callout", StringComparison.OrdinalIgnoreCase) &&
+            (!contextParams.TryGetValue("icon", out var iconToken) || iconToken.Type == JTokenType.Null))
         {
             contextParams.Remove("icon");
         }
@@ -623,9 +625,9 @@ public static class NotionHtmlParser
     private static JObject ParseRowTableNode(HtmlNode node)
     {
         var cells = node.ChildNodes
-       .Where(x => x.Name == "p")
-       .Select(x => x.InnerText)
-       .ToArray();
+            .Where(x => x.Name == "p")
+            .Select(x => x.InnerText)
+            .ToArray();
 
         var tableRow = JObject.Parse(node.Attributes[UntranslatableContentAttr]!.DeEntitizeValue);
         var tableCells = tableRow["table_row"]!["cells"]!.ToObject<List<List<JObject>>>()!;
@@ -759,6 +761,12 @@ public static class NotionHtmlParser
         {
             var parent = block["parent"] as JObject;
             var parentType = parent?["type"]?.ToString();
+
+            if (parentType == "block_id")
+            {
+                return;
+            }
+
             if (parentType != "page_id" && parentType != "database_id")
             {
                 string blockName = GetBlockName(block);
@@ -785,7 +793,7 @@ public static class NotionHtmlParser
             }
         }
     }
-    
+
     private static string GetBlockName(JObject block)
     {
         try
@@ -821,12 +829,12 @@ public static class NotionHtmlParser
         {
             return true;
         }
-        
+
         if (block["object"]?.ToString() == "database")
         {
             return true;
         }
-        
+
         return false;
     }
 }

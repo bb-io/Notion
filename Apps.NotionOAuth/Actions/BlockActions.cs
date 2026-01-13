@@ -11,6 +11,7 @@ using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Utils.Extensions.Http;
+using DocumentFormat.OpenXml.InkML;
 using Newtonsoft.Json.Linq;
 using RestSharp;
 
@@ -20,6 +21,11 @@ namespace Apps.NotionOAuth.Actions;
 public class BlockActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     private const int MaxBlocksUploadSize = 100;
+    public enum ContainerKind
+    {
+        Page,
+        Database
+    }
 
     [Action("Get block", Description = "Get details of a specific block")]
     public async Task<BlockEntity> GetBlock([ActionParameter] BlockRequest input)
@@ -52,26 +58,199 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         return Client.ExecuteWithErrorHandling(request);
     }
 
-    internal async Task AppendBlockChildren(string blockId, JObject[] blocks)
+    internal Task AppendBlockChildren(string containerId, JObject[] blocks)
+     => AppendBlockChildren(containerId, blocks, ContainerKind.Page, nearestPageIdForDatabaseCreation: null);
+
+    internal async Task AppendBlockChildren(
+      string containerId,
+      JObject[] blocks,
+      ContainerKind kind,
+      string? nearestPageIdForDatabaseCreation)
     {
         var blockChunks = ChunkBlocks(blocks);
 
         foreach (var blockChunk in blockChunks)
         {
+            await PromoteNestedPagesAndDatabasesAsync(blockChunk, containerId, kind, nearestPageIdForDatabaseCreation);
+
             if (blockChunk.Any(x => x["type"]?.ToString() == "child_page"))
             {
-                await ProcessChildPages(blockId, blockChunk);
+                await ProcessChildPages(containerId, kind, blockChunk, nearestPageIdForDatabaseCreation);
             }
             else if (blockChunk.Any(x => x["object"]?.ToString() == "database"))
             {
-                await ProcessDatabases(blockId, blockChunk);
+                await ProcessDatabases(containerId, kind, blockChunk, nearestPageIdForDatabaseCreation);
             }
             else
             {
-                await ProcessBlocks(blockId, blockChunk);
+                await ProcessBlocks(containerId, blockChunk);
             }
         }
     }
+
+    //
+    private async Task PromoteNestedPagesAndDatabasesAsync(
+        List<JObject> roots,
+        string containerId,
+        ContainerKind containerKind,
+        string? nearestPageIdForDatabaseCreation)
+    {
+        foreach (var root in roots)
+            await PromoteInNodeAsync(root, containerId, containerKind, nearestPageIdForDatabaseCreation);
+    }
+
+    private static bool IsChildPageOrDatabase(JObject obj)
+    {
+        var isChildPage = string.Equals(obj["type"]?.ToString(), "child_page", StringComparison.OrdinalIgnoreCase);
+        var isDatabase = string.Equals(obj["object"]?.ToString(), "database", StringComparison.OrdinalIgnoreCase);
+        return isChildPage || isDatabase;
+    }
+
+    private async Task PromoteInNodeAsync(
+         JObject node,
+        string containerId,
+        ContainerKind containerKind,
+        string? nearestPageIdForDatabaseCreation)
+    {
+        if (IsChildPageOrDatabase(node))
+            return;
+
+        if (node["children"] is JArray directChildren)
+        {
+            await PromoteInChildrenArrayAsync(directChildren, containerId, containerKind, nearestPageIdForDatabaseCreation);
+        }
+
+        var type = node["type"]?.ToString();
+        if (!string.IsNullOrEmpty(type) && node[type] is JObject content && content["children"] is JArray typedChildren)
+        {
+            await PromoteInChildrenArrayAsync(typedChildren, containerId, containerKind, nearestPageIdForDatabaseCreation);
+        }
+    }
+
+    private async Task PromoteInChildrenArrayAsync(
+         JArray children,
+        string containerId,
+        ContainerKind containerKind,
+        string? nearestPageIdForDatabaseCreation)
+    {
+        for (int i = 0; i < children.Count; i++)
+        {
+            if (children[i] is not JObject childObj)
+                continue;
+
+            var isChildPage = string.Equals(childObj["type"]?.ToString(), "child_page", StringComparison.OrdinalIgnoreCase);
+            var isDatabase = string.Equals(childObj["object"]?.ToString(), "database", StringComparison.OrdinalIgnoreCase);
+
+            if (isChildPage)
+            {
+                var createdPageId = await CreatePromotedChildPageAsync(childObj, containerId, containerKind);
+
+                children[i] = BuildLinkToPageBlock(createdPageId, isDatabase: false);
+                continue;
+            }
+
+            if (isDatabase)
+            {
+                var dbParentPageId = containerKind == ContainerKind.Page
+                    ? containerId
+                    : nearestPageIdForDatabaseCreation
+                      ?? throw new InvalidOperationException(
+                          "Cannot create a database in database context because there is no page parent to promote to.");
+
+                var createdDbId = await CreatePromotedDatabaseAsync(childObj, dbParentPageId);
+                children[i] = BuildLinkToPageBlock(createdDbId, isDatabase: true);
+                continue;
+            }
+
+            await PromoteInNodeAsync(childObj, containerId, containerKind, nearestPageIdForDatabaseCreation);
+        }
+    }
+
+    private static JObject BuildLinkToPageBlock(string id, bool isDatabase)
+    {
+        if (isDatabase)
+        {
+            return new JObject
+            {
+                ["object"] = "block",
+                ["type"] = "link_to_page",
+                ["link_to_page"] = new JObject
+                {
+                    ["type"] = "database_id",
+                    ["database_id"] = id
+                }
+            };
+        }
+
+        return new JObject
+        {
+            ["object"] = "block",
+            ["type"] = "link_to_page",
+            ["link_to_page"] = new JObject
+            {
+                ["type"] = "page_id",
+                ["page_id"] = id
+            }
+        };
+    }
+
+    private async Task<string> CreatePromotedChildPageAsync(JObject pageBlock, string containerId, ContainerKind containerKind)
+    {
+        RemoveUnnecessaryProperties(pageBlock, "type", "child_page");
+
+        var children = pageBlock["children"]?.ToObject<JObject[]>() ?? Array.Empty<JObject>();
+        pageBlock.Remove("children");
+
+        pageBlock["parent"] = containerKind == ContainerKind.Database
+            ? new JObject { ["type"] = "database_id", ["database_id"] = containerId }
+            : new JObject { ["type"] = "page_id", ["page_id"] = containerId };
+
+        RemoveDisallowedGeneratedProperties(pageBlock);
+        RemoveStatusProperties(pageBlock);
+        NotionHtmlParser.RemoveNullsDeep(pageBlock);
+
+        var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
+            .WithJsonBody(pageBlock, JsonConfig.Settings);
+
+        var created = await Client.ExecuteWithErrorHandling<PageResponse>(request);
+
+        if (children.Length > 0)
+        {
+            FlattenListItemsDeepInPlace(new JArray(children));
+            await AppendBlockChildren(created.Id, children, ContainerKind.Page, nearestPageIdForDatabaseCreation: null);
+        }
+
+        return created.Id;
+    }
+
+    private async Task<string> CreatePromotedDatabaseAsync(JObject databaseBlock, string parentPageId)
+    {
+        var children = databaseBlock["children"]?.ToObject<JObject[]>()
+                       ?? throw new InvalidOperationException("Child database must have children");
+
+        databaseBlock.Remove("children");
+
+        databaseBlock["parent"] = new JObject
+        {
+            ["type"] = "page_id",
+            ["page_id"] = parentPageId
+        };
+
+        RemoveGroupsFromProperties(databaseBlock);
+        FixStatusProperties(databaseBlock);
+        NotionHtmlParser.RemoveNullsDeep(databaseBlock);
+
+        var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds, ApiConstants.NotLatestApiVersion)
+            .WithJsonBody(databaseBlock, JsonConfig.Settings);
+
+        var created = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
+
+        FlattenListItemsDeepInPlace(new JArray(children));
+        await AppendBlockChildren(created.Id, children, ContainerKind.Database, nearestPageIdForDatabaseCreation: parentPageId);
+
+        return created.Id;
+    }
+    //
 
     private List<List<JObject>> ChunkBlocks(JObject[] blocks)
     {
@@ -110,72 +289,64 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         return blockChunks;
     }
 
-    private async Task ProcessChildPages(string blockId, List<JObject> blockChunk)
+    private async Task ProcessChildPages(string containerId, ContainerKind kind, List<JObject> blockChunk, string? nearestPageIdForDatabaseCreation)
     {
         foreach (var page in blockChunk)
         {
             RemoveUnnecessaryProperties(page, "type", "child_page");
 
-            var children = page["children"]?.ToObject<JObject[]>()
-                           ?? Array.Empty<JObject>();
+            var children = page["children"]?.ToObject<JObject[]>() ?? Array.Empty<JObject>();
             page.Remove("children");
 
-            var parent = page["parent"]?.ToObject<JObject>()
-                         ?? throw new InvalidOperationException($"Child page [{blockId}] must have a parent");
-
-            if (parent.TryGetValue("page_id", out _))
-            {
-                parent["page_id"] = blockId;
-                page["parent"] = parent;
-            }
-            else if (parent.TryGetValue("database_id", out _))
-            {
-                parent["database_id"] = blockId;
-                page["parent"] = parent;
-            }
+            page["parent"] = kind == ContainerKind.Database
+                ? new JObject { ["type"] = "database_id", ["database_id"] = containerId }
+                : new JObject { ["type"] = "page_id", ["page_id"] = containerId };
 
             RemoveDisallowedGeneratedProperties(page);
             RemoveStatusProperties(page);
-            
+
             var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
                 .WithJsonBody(page, JsonConfig.Settings);
-            
+
             var pageResponse = await Client.ExecuteWithErrorHandling<PageResponse>(request);
             if (children.Length > 0)
             {
                 FlattenListItemsDeepInPlace(new JArray(children));
-                await AppendBlockChildren(pageResponse.Id, children.ToArray());
+                await AppendBlockChildren(pageResponse.Id, children, ContainerKind.Page, nearestPageIdForDatabaseCreation: null);
             }
         }
     }
 
-    private async Task ProcessDatabases(string blockId, List<JObject> blockChunk)
+    private async Task ProcessDatabases(string containerId, ContainerKind kind, List<JObject> blockChunk, string? nearestPageIdForDatabaseCreation)
     {
         foreach (var database in blockChunk)
         {
-            var parent = database["parent"]?.ToObject<JObject>()
-                         ?? throw new InvalidOperationException("Databases must have a parent");
-
-            if (parent.TryGetValue("page_id", out _))
-            {
-                parent["page_id"] = blockId;
-                database["parent"] = parent;
-            }
-            
             var children = database["children"]?.ToObject<JObject[]>()
                            ?? throw new InvalidOperationException("Child database must have children");
-            
+
             database.Remove("children");
-            
+
+            var parentPageId = kind == ContainerKind.Page
+                ? containerId
+                : nearestPageIdForDatabaseCreation
+                  ?? throw new InvalidOperationException("Databases must have a page parent to be created.");
+
+            database["parent"] = new JObject
+            {
+                ["type"] = "page_id",
+                ["page_id"] = parentPageId
+            };
+
             RemoveGroupsFromProperties(database);
             FixStatusProperties(database);
 
             var request = new NotionRequest(ApiEndpoints.Databases, Method.Post, Creds, ApiConstants.NotLatestApiVersion)
                 .WithJsonBody(database, JsonConfig.Settings);
+
             var createdDatabase = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
 
             FlattenListItemsDeepInPlace(new JArray(children));
-            await AppendBlockChildren(createdDatabase.Id, children.ToArray());
+            await AppendBlockChildren(createdDatabase.Id, children, ContainerKind.Database, nearestPageIdForDatabaseCreation: parentPageId);
         }
     }
 

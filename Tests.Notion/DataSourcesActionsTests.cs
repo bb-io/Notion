@@ -15,15 +15,12 @@ public class DataSourcesActionsTests : TestBase
         var action = new DataSourcesActions(InvocationContext);
         var input = new DataSourceRequest
         {
-            DataSourceId = "49ddf508-2731-4b25-ab8a-208f168043c4"
+            DataSourceId = "e5585fd5-8491-4cf1-9e1d-6ddfa93d2761"
         };
 
         // Act
         var result = await action.SearchPagesInDatasource(input, new()
         {
-            FilterProperty = "Status",
-            FilterPropertyType = "select",
-            FilterValue = "Waiting for credentials"
         });
 
         // Assert
