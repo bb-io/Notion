@@ -1,3 +1,4 @@
+using Apps.NotionOAuth.Actions.Enums;
 using Apps.NotionOAuth.Api;
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Invocables;
@@ -21,11 +22,7 @@ namespace Apps.NotionOAuth.Actions;
 public class BlockActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     private const int MaxBlocksUploadSize = 100;
-    public enum ContainerKind
-    {
-        Page,
-        Database
-    }
+   
 
     [Action("Get block", Description = "Get details of a specific block")]
     public async Task<BlockEntity> GetBlock([ActionParameter] BlockRequest input)
@@ -59,12 +56,12 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
     }
 
     internal Task AppendBlockChildren(string containerId, JObject[] blocks)
-     => AppendBlockChildren(containerId, blocks, ContainerKind.Page, nearestPageIdForDatabaseCreation: null);
+     => AppendBlockChildren(containerId, blocks, ContainerType.Page, nearestPageIdForDatabaseCreation: null);
 
     internal async Task AppendBlockChildren(
       string containerId,
       JObject[] blocks,
-      ContainerKind kind,
+      ContainerType kind,
       string? nearestPageIdForDatabaseCreation)
     {
         var blockChunks = ChunkBlocks(blocks);
@@ -88,11 +85,10 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         }
     }
 
-    //
     private async Task PromoteNestedPagesAndDatabasesAsync(
         List<JObject> roots,
         string containerId,
-        ContainerKind containerKind,
+        ContainerType containerKind,
         string? nearestPageIdForDatabaseCreation)
     {
         foreach (var root in roots)
@@ -109,7 +105,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
     private async Task PromoteInNodeAsync(
          JObject node,
         string containerId,
-        ContainerKind containerKind,
+        ContainerType containerKind,
         string? nearestPageIdForDatabaseCreation)
     {
         if (IsChildPageOrDatabase(node))
@@ -130,7 +126,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
     private async Task PromoteInChildrenArrayAsync(
          JArray children,
         string containerId,
-        ContainerKind containerKind,
+        ContainerType containerKind,
         string? nearestPageIdForDatabaseCreation)
     {
         for (int i = 0; i < children.Count; i++)
@@ -143,7 +139,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
             if (isChildPage)
             {
-                var createdPageId = await CreatePromotedChildPageAsync(childObj, containerId, containerKind);
+                var createdPageId = await CreatePromotedChildPageIdAsync(childObj, containerId, containerKind);
 
                 children[i] = BuildLinkToPageBlock(createdPageId, isDatabase: false);
                 continue;
@@ -151,13 +147,13 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
             if (isDatabase)
             {
-                var dbParentPageId = containerKind == ContainerKind.Page
+                var dbParentPageId = containerKind == ContainerType.Page
                     ? containerId
                     : nearestPageIdForDatabaseCreation
                       ?? throw new InvalidOperationException(
                           "Cannot create a database in database context because there is no page parent to promote to.");
 
-                var createdDbId = await CreatePromotedDatabaseAsync(childObj, dbParentPageId);
+                var createdDbId = await CreatePromotedDatabaseIdAsync(childObj, dbParentPageId);
                 children[i] = BuildLinkToPageBlock(createdDbId, isDatabase: true);
                 continue;
             }
@@ -194,14 +190,14 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         };
     }
 
-    private async Task<string> CreatePromotedChildPageAsync(JObject pageBlock, string containerId, ContainerKind containerKind)
+    private async Task<string> CreatePromotedChildPageIdAsync(JObject pageBlock, string containerId, ContainerType containerKind)
     {
         RemoveUnnecessaryProperties(pageBlock, "type", "child_page");
 
         var children = pageBlock["children"]?.ToObject<JObject[]>() ?? Array.Empty<JObject>();
         pageBlock.Remove("children");
 
-        pageBlock["parent"] = containerKind == ContainerKind.Database
+        pageBlock["parent"] = containerKind == ContainerType.Database
             ? new JObject { ["type"] = "database_id", ["database_id"] = containerId }
             : new JObject { ["type"] = "page_id", ["page_id"] = containerId };
 
@@ -217,13 +213,13 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         if (children.Length > 0)
         {
             FlattenListItemsDeepInPlace(new JArray(children));
-            await AppendBlockChildren(created.Id, children, ContainerKind.Page, nearestPageIdForDatabaseCreation: null);
+            await AppendBlockChildren(created.Id, children, ContainerType.Page, nearestPageIdForDatabaseCreation: null);
         }
 
         return created.Id;
     }
 
-    private async Task<string> CreatePromotedDatabaseAsync(JObject databaseBlock, string parentPageId)
+    private async Task<string> CreatePromotedDatabaseIdAsync(JObject databaseBlock, string parentPageId)
     {
         var children = databaseBlock["children"]?.ToObject<JObject[]>()
                        ?? throw new InvalidOperationException("Child database must have children");
@@ -246,11 +242,10 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         var created = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
 
         FlattenListItemsDeepInPlace(new JArray(children));
-        await AppendBlockChildren(created.Id, children, ContainerKind.Database, nearestPageIdForDatabaseCreation: parentPageId);
+        await AppendBlockChildren(created.Id, children, ContainerType.Database, nearestPageIdForDatabaseCreation: parentPageId);
 
         return created.Id;
     }
-    //
 
     private List<List<JObject>> ChunkBlocks(JObject[] blocks)
     {
@@ -289,7 +284,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         return blockChunks;
     }
 
-    private async Task ProcessChildPages(string containerId, ContainerKind kind, List<JObject> blockChunk, string? nearestPageIdForDatabaseCreation)
+    private async Task ProcessChildPages(string containerId, ContainerType kind, List<JObject> blockChunk, string? nearestPageIdForDatabaseCreation)
     {
         foreach (var page in blockChunk)
         {
@@ -298,7 +293,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             var children = page["children"]?.ToObject<JObject[]>() ?? Array.Empty<JObject>();
             page.Remove("children");
 
-            page["parent"] = kind == ContainerKind.Database
+            page["parent"] = kind == ContainerType.Database
                 ? new JObject { ["type"] = "database_id", ["database_id"] = containerId }
                 : new JObject { ["type"] = "page_id", ["page_id"] = containerId };
 
@@ -312,12 +307,12 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             if (children.Length > 0)
             {
                 FlattenListItemsDeepInPlace(new JArray(children));
-                await AppendBlockChildren(pageResponse.Id, children, ContainerKind.Page, nearestPageIdForDatabaseCreation: null);
+                await AppendBlockChildren(pageResponse.Id, children, ContainerType.Page, nearestPageIdForDatabaseCreation: null);
             }
         }
     }
 
-    private async Task ProcessDatabases(string containerId, ContainerKind kind, List<JObject> blockChunk, string? nearestPageIdForDatabaseCreation)
+    private async Task ProcessDatabases(string containerId, ContainerType kind, List<JObject> blockChunk, string? nearestPageIdForDatabaseCreation)
     {
         foreach (var database in blockChunk)
         {
@@ -326,7 +321,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
             database.Remove("children");
 
-            var parentPageId = kind == ContainerKind.Page
+            var parentPageId = kind == ContainerType.Page
                 ? containerId
                 : nearestPageIdForDatabaseCreation
                   ?? throw new InvalidOperationException("Databases must have a page parent to be created.");
@@ -346,7 +341,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             var createdDatabase = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
 
             FlattenListItemsDeepInPlace(new JArray(children));
-            await AppendBlockChildren(createdDatabase.Id, children, ContainerKind.Database, nearestPageIdForDatabaseCreation: parentPageId);
+            await AppendBlockChildren(createdDatabase.Id, children, ContainerType.Database, nearestPageIdForDatabaseCreation: parentPageId);
         }
     }
 
