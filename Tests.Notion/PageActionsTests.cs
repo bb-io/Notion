@@ -116,16 +116,13 @@ public class PageActionsTests : TestBase
     public async Task GetPageAsHtml_ValidParameters_ShouldReturnHtmlFile()
     {
         // Arrange
-        var pageId = "2a2efdee-ad05-805c-8eb4-c37e3d18fbcb";
+        var pageId = "2e703abb8136811fb142df70b436bcf1";
         var pageRequest = new PageRequest
         {
             PageId = pageId
         };
         var htmlRequest = new GetPageAsHtmlRequest()
         {
-            IncludeChildPages = true,
-            IncludeChildDatabases = true,
-            IncludePageProperties = true
         };
 
         // Act
@@ -139,7 +136,7 @@ public class PageActionsTests : TestBase
     public async Task CreatePageFromHtml_ValidParameters_ShouldCreatePage()
     {
         // Arrange
-        var htmlFileName = "2e6efdee-ad05-8076-9461-cbba4a2d8056.html";
+        var htmlFileName = "2e6efdee-ad05-8076-9461-cbba4a2d8056_en.html";
         
         var pageRequest = new CreatePageInput
         {
