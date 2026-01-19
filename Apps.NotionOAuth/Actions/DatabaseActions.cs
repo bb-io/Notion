@@ -86,19 +86,23 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
     public async Task<PageEntity> SearchSinglePageInDatabase(
     [ActionParameter] StringPropertyWithValueRequest input)
     {
+        var propertyType = await GetDatabasePropertyType(input.DatabaseId, input.PropertyId);
+
+        var body = new Dictionary<string, object>
+        {
+            ["page_size"] = 1,
+            ["filter"] = BuildTextFilter(input.PropertyId, propertyType, input.Value),
+        };
+
         var endpoint = $"{ApiEndpoints.Databases}/{input.DatabaseId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds, ApiConstants.NotLatestApiVersion);
 
-        var response = await Client.PaginateWithBody<PageResponse>(request);
-        foreach (var page in response)
-        {
-            var property = page.FindPropertyById(input.PropertyId);
-            var value = property?.GetStringValue();
-            if (value == input.Value)
-                return new PageEntity(page);
-        }
+        var results = await Client.PaginateWithBody<PageResponse>(request, body, maxPagesCount: 1);
+        var page = results.FirstOrDefault();
 
-        return new PageEntity(new PageResponse { });
+        return page != null
+            ? new PageEntity(page)
+            : new PageEntity(new PageResponse { });
     }
 
     [Action("Create database", Description = "Create a new database")]
@@ -134,7 +138,71 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
         var response = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
         return new(response);
     }
-    
+
+    private async Task<string> GetDatabasePropertyType(string databaseId, string propertyId)
+    {
+        var endpoint = $"{ApiEndpoints.Databases}/{databaseId}";
+        var request = new NotionRequest(endpoint, Method.Get, Creds, ApiConstants.NotLatestApiVersion);
+
+        var db = await Client.ExecuteWithErrorHandling<DatabaseRetrieveResponse>(request);
+
+        var match = db.Properties.Values.FirstOrDefault(p => p.Id == propertyId);
+        if (match == null)
+            throw new ArgumentException($"Property with id '{propertyId}' was not found in database schema.");
+
+        return match.Type;
+    }
+
+    private static object BuildTextFilter(string propertyId, string propertyType, string value)
+    {
+        return propertyType switch
+        {
+            "title" => new
+            {
+                property = propertyId,
+                title = new { equals = value }
+            },
+
+            "rich_text" => new
+            {
+                property = propertyId,
+                rich_text = new { equals = value }
+            },
+
+            "url" => new
+            {
+                property = propertyId,
+                rich_text = new { equals = value }
+            },
+
+            "email" => new
+            {
+                property = propertyId,
+                rich_text = new { equals = value }
+            },
+
+            "phone_number" => new
+            {
+                property = propertyId,
+                phone_number = new { equals = value }
+            },
+
+            "select" => new
+            {
+                property = propertyId,
+                select = new { equals = value }
+            },
+
+            "status" => new
+            {
+                property = propertyId,
+                status = new { equals = value }
+            },
+
+            _ => throw new ArgumentException($"Property type '{propertyType}' is not supported by this action.")
+        };
+    }
+
     public async Task<List<DatabaseJsonEntity>> SearchPagesInDatabaseAsJsonAsync(string databaseId)
     {
         var endpoint = $"{ApiEndpoints.Databases}/{databaseId}/query";

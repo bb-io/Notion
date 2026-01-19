@@ -1,6 +1,7 @@
 ﻿using Apps.NotionOAuth.Actions;
 using Apps.NotionOAuth.Models.Request;
 using Apps.NotionOAuth.Models.Request.DataBase;
+using Apps.NotionOAuth.Models.Request.DataBase.Properties.Getters;
 using Apps.NotionOAuth.Models.Response.DataBase;
 using Apps.NotionOAuth.Models.Response.Page;
 using Newtonsoft.Json;
@@ -84,7 +85,28 @@ public class DatabaseActionsTests : TestBase
 
         Assert.IsTrue(response.Pages.Length > 0, "Expected at least one page in the response.");
     }
-    
+
+    [TestMethod]
+    public async Task SearchSinglePageInDatabase_works()
+    {
+        // Arrange
+        var action = new DatabaseActions(InvocationContext);
+        var request = new StringPropertyWithValueRequest
+        {
+            DatabaseId = "e5585fd5-8491-4cf1-9e1d-6ddfa93d2761",
+            Value = "Test 1",
+            PropertyId = "title"
+        };
+
+        // Act
+        var response = await action.SearchSinglePageInDatabase(request);
+
+        // Assert    
+        Console.WriteLine(JsonConvert.SerializeObject(response, Formatting.Indented));
+
+        Assert.IsNotNull(response);
+    }
+
     [TestMethod]
     public async Task GetDatabase_ValidRequest_Success()
     {
