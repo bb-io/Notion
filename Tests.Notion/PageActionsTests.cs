@@ -136,12 +136,12 @@ public class PageActionsTests : TestBase
     public async Task CreatePageFromHtml_ValidParameters_ShouldCreatePage()
     {
         // Arrange
-        var htmlFileName = "2e6efdee-ad05-8076-9461-cbba4a2d8056_en.html";
+        var htmlFileName = "dsffsd.html";
         
         var pageRequest = new CreatePageInput
         {
             Title = $"Test page: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
-            DatabaseId= "e5585fd5-8491-4cf1-9e1d-6ddfa93d2761"
+            PageId= "292a9644-cf02-81cb-b26f-e9c164e83bab"
         };
         
         var fileRequest = new FileRequest
@@ -154,5 +154,40 @@ public class PageActionsTests : TestBase
 
         // Assert
         Console.WriteLine($"Successfully created page with HTML from {htmlFileName}");
+    }
+
+    [TestMethod]
+    public async Task UpdatePageFromHtml_ValidParameters_ShouldCreatePage()
+    {
+        // Arrange
+        var htmlFileName = "2e6efdee-ad05-8076-9461-cbba4a2d8056_en.html";
+
+        var pageRequest = new PageOptionalRequest
+        {
+            PageId = "2e903abb-8136-812e-9802-cba57766ce53",
+        };
+
+        var fileRequest = new FileRequest
+        {
+            File = new FileReference { Name = htmlFileName, ContentType = "text/html" }
+        };
+
+        // Act
+        await _actions.UpdatePageFromHtml(pageRequest, fileRequest);
+
+        // Assert
+        Console.WriteLine($"Successfully created page with HTML from {htmlFileName}");
+    }
+
+    [TestMethod]
+    public async Task AddComment_IsSuccess()
+    {
+        var action = new CommentActions(InvocationContext);
+
+        var response = await action.AddComment(new Apps.NotionOAuth.Models.Request.Comment.AddCommentInput
+        {
+            PageId = "2e903abb81368174a7f5f6fc65a93da0",
+            Text = "This is a test comment from automated tests."
+        });
     }
 }
