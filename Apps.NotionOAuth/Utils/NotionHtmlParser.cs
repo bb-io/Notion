@@ -32,7 +32,11 @@ public static class NotionHtmlParser
     private static readonly string[] TextTypes = { DatabasePropertyTypes.RichText, "text" };
 
     // main method
+
     public static JObject[] ParseHtml(string html)
+       => ParseHtml(html, rootPageId: null, requireRootPageId: true, strictMissingParents: true);
+
+    public static JObject[] ParseHtml(string html, string? rootPageId, bool requireRootPageId, bool strictMissingParents)
     {
         var htmlDoc = html.AsHtmlDocument();
         var translatableNodes = htmlDoc.DocumentNode.SelectSingleNode("/html/body")
@@ -42,16 +46,31 @@ public static class NotionHtmlParser
 
         var jObjects = translatableNodes.Select(MapNodeToBlockChild).ToList();
 
-        var extractedPageId = ExtractAndNormalizePageId(html);
+        var normalizedRootPageId = ResolveAndNormalizeRootPageId(html, rootPageId, requireRootPageId);
+
         var blocksById = jObjects.Where(x => x["id"] != null)
             .ToDictionary(x => NormalizeId(x["id"]!.ToString()));
 
-        OrganizeBlocks(jObjects, extractedPageId, blocksById);
+        OrganizeBlocks(jObjects, normalizedRootPageId, blocksById, strictMissingParents);
 
         ValidateNotionBlockHierarchy(jObjects);
 
         jObjects.ForEach(RemoveUnnecessaryProperties);
         return jObjects.ToArray();
+    }
+
+    private static string? ResolveAndNormalizeRootPageId(string html, string? rootPageId, bool requireRootPageId)
+    {
+        var candidate = rootPageId ?? ExtractPageId(html);
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            if (requireRootPageId)
+                throw new PluginMisconfigurationException("Page ID not found in HTML");
+
+            return null;
+        }
+
+        return NormalizeId(candidate);
     }
 
     private static string ExtractAndNormalizePageId(string html)
@@ -62,28 +81,37 @@ public static class NotionHtmlParser
         return NormalizeId(extractedPageId);
     }
 
-    private static void OrganizeBlocks(List<JObject> jObjects, string extractedPageId,
-        Dictionary<string, JObject> blocksById)
+    private static void OrganizeBlocks(
+        List<JObject> roots,
+        string? normalizedRootPageId,
+        Dictionary<string, JObject> blocksById,
+        bool strictMissingParents)
     {
-        for (int i = jObjects.Count - 1; i >= 0; i--)
+        for (int i = roots.Count - 1; i >= 0; i--)
         {
-            var block = jObjects[i];
+            var block = roots[i];
             var parentId = block.GetParentId();
-            if (parentId != null)
+            if (parentId == null)
+                continue;
+
+            var normalizedParentId = NormalizeId(parentId);
+
+            if (!string.IsNullOrEmpty(normalizedRootPageId) &&
+                string.Equals(normalizedParentId, normalizedRootPageId, StringComparison.OrdinalIgnoreCase))
             {
-                parentId = NormalizeId(parentId);
-                if (extractedPageId != parentId)
-                {
-                    if (blocksById.TryGetValue(parentId, out var parentBlock))
-                    {
-                        AddBlockToParent(block, parentBlock);
-                        jObjects.RemoveAt(i);
-                    }
-                    else
-                    {
-                        throw new PluginMisconfigurationException($"Parent block with ID {parentId} not found");
-                    }
-                }
+                continue;
+            }
+
+            if (blocksById.TryGetValue(normalizedParentId, out var parentBlock))
+            {
+                AddBlockToParent(block, parentBlock);
+                roots.RemoveAt(i);
+                continue;
+            }
+
+            if (strictMissingParents)
+            {
+                throw new PluginMisconfigurationException($"Parent block with ID {normalizedParentId} not found");
             }
         }
     }

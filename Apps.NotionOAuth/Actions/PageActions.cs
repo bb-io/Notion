@@ -77,7 +77,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var fileBytes = await fileStream.GetByteData();
         var html = Encoding.UTF8.GetString(fileBytes);
 
-        var blocks = NotionHtmlParser.ParseHtml(html);
+        var blocks = NotionHtmlParser.ParseHtml(html,rootPageId: null,requireRootPageId: false,strictMissingParents: false);
         await new BlockActions(InvocationContext).AppendBlockChildren(page.Id, blocks);
         return page;
     }
@@ -146,7 +146,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             }
         }
 
-        var blocks = NotionHtmlParser.ParseHtml(html);
+        var blocks = NotionHtmlParser.ParseHtml(html,rootPageId: pageId,requireRootPageId: false,strictMissingParents: false);
         await actions.AppendBlockChildren(pageId, blocks);
     }
 
