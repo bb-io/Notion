@@ -77,6 +77,7 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 >
 > - `{locale} Usage`
 > - `{locale} Notes`
+>
 > Where `{locale}` must match the locale code used by your translation columns (e.g. `pt-BR`, `de`, `es`).
 
 
