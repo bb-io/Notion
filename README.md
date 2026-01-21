@@ -70,6 +70,13 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 - **Download glossary** downloads data source pages into an interoperable glosary.
 
 > Filtering logic for the 'Download glossary' action includes all entries that match the filter criteria and assembles them into a glossary file. For each filter field provided, you must provide a corresponding filter value.
+> 
+
+> The action supports optional **Usage** and **Notes** per locale. If these columns exist and contain a value, they will be included in the exported TBX  
+> To include them, create additional columns in the Notion glossary database using the following naming convention:
+>
+> - `{locale} Usage`
+> - `{locale} Notes`
 
 ## Events
 
