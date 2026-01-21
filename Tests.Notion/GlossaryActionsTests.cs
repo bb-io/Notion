@@ -34,15 +34,20 @@ public class GlossaryActionsTests : TestBase
         // Arrange
         var dataSource = new DataSourceRequest()
         {
-            DataSourceId = "2d887f55-25f0-80ec-8fe5-000b81251270",
+            DataSourceId = "2b8a9644-cf02-80e7-abed-000b68742d53",
         };
         var input = new DownloadGlossaryRequest
         {
-            PropertiesAsTargetLanguages = ["mFyX", "F%3EmZ"],
+            PropertiesAsTargetLanguages = ["UoW%40", "yX%3BK", "%7C%3Do%3F"],
             Title = "Glossary Page",
             SourceDescription = "This is a sample glossary.",
-            FilterFields = ["%3Ea%60b", "%3Ea%60b", "SPMh"],
-            FilterValues = ["Approved", "Draft", "123@gmail.com"]
+            DefaultLocale = "en",
+            DefinitionProperty = "VO%5Dw",
+            NoteProperty = "%7BOou",
+            DomainProperty = "GZoJ",
+
+            //FilterFields = ["%3Ea%60b", "%3Ea%60b", "SPMh"],
+            //FilterValues = ["Approved", "Draft", "123@gmail.com"]
         };
 
         // Act

@@ -48,6 +48,11 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
         if (dataSourceResponse.Count == 0)
             throw new PluginMisconfigurationException("The data source contains no entries.");
 
+        var existingPropertyNames = dataSourceResponse.First().Properties?.Keys
+            .ToHashSet(StringComparer.OrdinalIgnoreCase)
+            ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+
         var glossaryConceptEntries = new List<GlossaryConceptEntry>();
 
         var filterGroups = (input.FilterFields ?? [])
@@ -94,13 +99,26 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
                 ?? throw new Exception("[Download glossary] Page title was not found.");
             var title = XmlHelper.SanitizeForXml(rawTitle);
 
-            languageSections.Add(new(input.DefaultLocale, [new(title)]));
+            var sourceTerm = new GlossaryTermSection(title);
+            ApplyLocaleUsageAndNotesIfExist(page, input.DefaultLocale, sourceTerm, existingPropertyNames);
+
+            if (string.IsNullOrWhiteSpace(sourceTerm.UsageExample) && TryGetPropertyValueByName(page, "Use cases", out var useCases))
+            {
+                sourceTerm.UsageExample = XmlHelper.SanitizeForXml(useCases);
+            }
+
+            languageSections.Add(new GlossaryLanguageSection(input.DefaultLocale, [sourceTerm]));
 
             // Other properties as target languages
             foreach (var propertyId in input.PropertiesAsTargetLanguages ?? [])
             {
-                if (TryGetPropertyNameValue(page, propertyId, out var translation, out var locale))
-                    languageSections.Add(new(locale, [new(XmlHelper.SanitizeForXml(translation))]));
+                if (!TryGetPropertyNameValue(page, propertyId, out var translation, out var locale))
+                    continue;
+
+                var term = new GlossaryTermSection(XmlHelper.SanitizeForXml(translation));
+                ApplyLocaleUsageAndNotesIfExist(page, locale, term, existingPropertyNames);
+
+                languageSections.Add(new GlossaryLanguageSection(locale, [term]));
             }
 
             // Create glossary entry
@@ -163,5 +181,56 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
             return false;
 
         return true;
+    }
+
+    private static bool TryGetPropertyValueByName(
+     PageResponse page,
+     string propertyDisplayName,
+     out string value)
+    {
+        value = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(propertyDisplayName))
+            return false;
+
+        if (page.Properties is null)
+            return false;
+
+        if (page.Properties.TryGetValue(propertyDisplayName, out var propObj) && propObj is not null)
+        {
+            value = PagePropertyParser.ToString(propObj);
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
+        var match = page.Properties
+            .FirstOrDefault(kvp => string.Equals(kvp.Key, propertyDisplayName, StringComparison.OrdinalIgnoreCase));
+
+        if (string.IsNullOrWhiteSpace(match.Key) || match.Value is null)
+            return false;
+
+        value = PagePropertyParser.ToString(match.Value);
+        return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static void ApplyLocaleUsageAndNotesIfExist(
+    PageResponse page,
+    string locale,
+    GlossaryTermSection term,
+    HashSet<string> existingPropertyNames)
+    {
+        var usageProp = $"{locale} Usage";
+        if (existingPropertyNames.Contains(usageProp) &&
+            TryGetPropertyValueByName(page, usageProp, out var usage))
+        {
+            term.UsageExample = XmlHelper.SanitizeForXml(usage);
+        }
+
+        var notesProp = $"{locale} Notes";
+        if (existingPropertyNames.Contains(notesProp) &&
+            TryGetPropertyValueByName(page, notesProp, out var note))
+        {
+            term.Notes ??= [];
+            term.Notes.Add(XmlHelper.SanitizeForXml(note));
+        }
     }
 }
