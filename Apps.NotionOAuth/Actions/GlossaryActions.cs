@@ -101,12 +101,6 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
 
             var sourceTerm = new GlossaryTermSection(title);
             ApplyLocaleUsageAndNotesIfExist(page, input.DefaultLocale, sourceTerm, existingPropertyNames);
-
-            if (string.IsNullOrWhiteSpace(sourceTerm.UsageExample) && TryGetPropertyValueByName(page, "Use cases", out var useCases))
-            {
-                sourceTerm.UsageExample = XmlHelper.SanitizeForXml(useCases);
-            }
-
             languageSections.Add(new GlossaryLanguageSection(input.DefaultLocale, [sourceTerm]));
 
             // Other properties as target languages
