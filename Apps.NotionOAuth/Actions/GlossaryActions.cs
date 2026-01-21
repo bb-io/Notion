@@ -222,7 +222,10 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
         if (existingPropertyNames.Contains(usageProp) &&
             TryGetPropertyValueByName(page, usageProp, out var usage))
         {
-            term.UsageExample = XmlHelper.SanitizeForXml(usage);
+            var sanitizedUsage = XmlHelper.SanitizeForXml(usage);
+
+            term.TermNotes ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            term.TermNotes["usageNote"] = sanitizedUsage;
         }
 
         var notesProp = $"{locale} Notes";
