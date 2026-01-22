@@ -34,7 +34,7 @@ namespace Apps.NotionOAuth.DataSourceHandlers
 
             if (containerId == HomeVirtualId)
             {
-                var (results, nextCursor) = await SearchAllAsync(cursor, DefaultPageSize, cancellationToken);
+                var (results, nextCursor) = await SearchTopLevelAsync(cursor, DefaultPageSize, cancellationToken);
                 return BuildResultWithLoadMore(containerId, results.Select(ToPickerFolder).WhereNotNull(), nextCursor);
             }
 
@@ -276,31 +276,6 @@ namespace Apps.NotionOAuth.DataSourceHandlers
             return list;
         }
 
-        private async Task<(List<JObject> Items, string? NextCursor)> SearchAllAsync(
-            string? startCursor,
-            int pageSize,
-            CancellationToken ct)
-        {
-            var body = new JObject
-            {
-                ["page_size"] = pageSize,
-                ["sort"] = new JObject
-                {
-                    ["direction"] = "descending",
-                    ["timestamp"] = "last_edited_time"
-                }
-            };
-
-            if (!string.IsNullOrWhiteSpace(startCursor))
-                body["start_cursor"] = startCursor;
-
-            var request = new NotionRequest(ApiEndpoints.Search, Method.Post, Creds)
-                .WithJsonBody(body);
-
-            var resp = await Client.ExecuteWithErrorHandling<JObject>(request);
-            return ParsePagedResults(resp);
-        }
-
         private async Task<(List<JObject> Items, string? NextCursor)> GetPageChildrenAsync(
             string pageId,
             string? startCursor,
@@ -490,6 +465,81 @@ namespace Apps.NotionOAuth.DataSourceHandlers
             var id = raw[..idx];
             var cursor = raw[(idx + CursorMarker.Length)..];
             return (id, string.IsNullOrWhiteSpace(cursor) ? null : cursor);
+        }
+
+        private async Task<(List<JObject> Items, string? NextCursor)> SearchTopLevelAsync(
+            string? startCursor,
+            int pageSize,
+            CancellationToken ct)
+        {
+
+            var collected = new List<JObject>();
+            string? cursor = startCursor;
+
+            var guard = 0;
+
+            while (collected.Count < pageSize && guard++ < 10)
+            {
+                var body = new JObject
+                {
+                    ["page_size"] = pageSize,
+                    ["sort"] = new JObject
+                    {
+                        ["direction"] = "descending",
+                        ["timestamp"] = "last_edited_time"
+                    }
+                };
+
+                if (!string.IsNullOrWhiteSpace(cursor))
+                    body["start_cursor"] = cursor;
+
+                var request = new NotionRequest(ApiEndpoints.Search, Method.Post, Creds)
+                    .WithJsonBody(body);
+
+                var resp = await Client.ExecuteWithErrorHandling<JObject>(request);
+                var (items, nextCursor) = ParsePagedResults(resp);
+
+                foreach (var item in items)
+                {
+                    if (!IsSupportedObject(item))
+                        continue;
+
+                    if (IsTopLevelWorkspaceItem(item))
+                        collected.Add(item);
+
+                    if (collected.Count >= pageSize)
+                        break;
+                }
+
+                if (string.IsNullOrWhiteSpace(nextCursor))
+                    return (collected, null);
+
+                cursor = nextCursor;
+            }
+
+            return (collected, cursor);
+        }
+
+        private static bool IsSupportedObject(JObject item)
+        {
+            var obj = item.Value<string>("object") ?? string.Empty;
+
+            return obj.Equals("page", StringComparison.OrdinalIgnoreCase)
+                || obj.Equals("database", StringComparison.OrdinalIgnoreCase)
+                || obj.Equals("data_source", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsTopLevelWorkspaceItem(JObject item)
+        {
+            var parent = item["parent"] as JObject;
+            if (parent is null) return false;
+
+            var type = parent.Value<string>("type");
+            if (!string.Equals(type, "workspace", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var ws = parent.Value<bool?>("workspace");
+            return ws is null || ws == true;
         }
     }
 
