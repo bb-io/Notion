@@ -14,7 +14,7 @@ namespace Apps.NotionOAuth.DataSourceHandlers
     : NotionInvocable(invocationContext), IAsyncFileDataSourceItemHandler
     {
         private const int DefaultPageSize = 50;
-
+        private const int SearchScanPageSize = 100;
         private const string HomeVirtualId = "v:home";
         private const string HomeDisplay = "Notion";
 
@@ -469,20 +469,20 @@ namespace Apps.NotionOAuth.DataSourceHandlers
 
         private async Task<(List<JObject> Items, string? NextCursor)> SearchTopLevelAsync(
             string? startCursor,
-            int pageSize,
+            int targetCount,
             CancellationToken ct)
         {
-
             var collected = new List<JObject>();
             string? cursor = startCursor;
 
-            var guard = 0;
+            var maxScans = 200;
+            var scans = 0;
 
-            while (collected.Count < pageSize && guard++ < 10)
+            while (scans++ < maxScans)
             {
                 var body = new JObject
                 {
-                    ["page_size"] = pageSize,
+                    ["page_size"] = SearchScanPageSize,
                     ["sort"] = new JObject
                     {
                         ["direction"] = "descending",
@@ -506,10 +506,10 @@ namespace Apps.NotionOAuth.DataSourceHandlers
 
                     if (IsTopLevelWorkspaceItem(item))
                         collected.Add(item);
-
-                    if (collected.Count >= pageSize)
-                        break;
                 }
+
+                if (collected.Count >= targetCount)
+                    return (collected, nextCursor);
 
                 if (string.IsNullOrWhiteSpace(nextCursor))
                     return (collected, null);
