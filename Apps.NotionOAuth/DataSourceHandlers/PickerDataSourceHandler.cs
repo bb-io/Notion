@@ -26,8 +26,8 @@ namespace Apps.NotionOAuth.DataSourceHandlers
         private const string CursorMarker = "|c:";
 
         public async Task<IEnumerable<FileDataItem>> GetFolderContentAsync(
-       FolderContentDataSourceContext context,
-       CancellationToken cancellationToken)
+           FolderContentDataSourceContext context,
+           CancellationToken cancellationToken)
         {
             var rawId = string.IsNullOrWhiteSpace(context.FolderId) ? HomeVirtualId : context.FolderId;
             var (containerId, cursor) = SplitCursor(rawId);
@@ -82,9 +82,9 @@ namespace Apps.NotionOAuth.DataSourceHandlers
             }
 
             return new List<FileDataItem>
-        {
-            new Folder { Id = HomeVirtualId, DisplayName = HomeDisplay, IsSelectable = false }
-        };
+            {
+                new Folder { Id = HomeVirtualId, DisplayName = HomeDisplay, IsSelectable = false }
+            };
         }
 
         public async Task<IEnumerable<FolderPathItem>> GetFolderPathAsync(
