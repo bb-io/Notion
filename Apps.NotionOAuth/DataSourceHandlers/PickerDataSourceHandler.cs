@@ -54,23 +54,23 @@ namespace Apps.NotionOAuth.DataSourceHandlers
 
             if (kind == NotionKind.Page)
             {
-                var (children, next) = await GetPageChildrenAsync(containerId, cursor, DefaultPageSize, cancellationToken);
+                var (children, nextCursor) = await GetPageChildrenAsync(containerId, cursor, DefaultPageSize, cancellationToken);
                 var mapped = children.Select(ToPickerFolder).WhereNotNull();
-                return BuildResultWithLoadMore(containerId, mapped, next);
+                return BuildResultWithLoadMore(containerId, mapped, nextCursor);
             }
 
             if (kind == NotionKind.Database)
             {
-                var (items, next) = await QueryDatabaseAsync(containerId, cursor, DefaultPageSize, cancellationToken);
+                var (items, nextCursor) = await QueryDatabaseAsync(containerId, cursor, DefaultPageSize, cancellationToken);
                 var mapped = items.Select(ToPickerFolder).WhereNotNull();
-                return BuildResultWithLoadMore(containerId, mapped, next);
+                return BuildResultWithLoadMore(containerId, mapped, nextCursor);
             }
 
             if (kind == NotionKind.DataSource)
             {
-                var (items, next) = await QueryDataSourceAsync(containerId, cursor, DefaultPageSize, cancellationToken);
+                var (items, nextCursor) = await QueryDataSourceAsync(containerId, cursor, DefaultPageSize, cancellationToken);
                 var mapped = items.Select(ToPickerFolder).WhereNotNull();
-                return BuildResultWithLoadMore(containerId, mapped, next);
+                return BuildResultWithLoadMore(containerId, mapped, nextCursor);
             }
 
             return new List<FileDataItem>
@@ -183,7 +183,7 @@ namespace Apps.NotionOAuth.DataSourceHandlers
             var pages = await SearchAllByObjectAsync("page", apiVersion: null, ct);
             var dataSources = await SearchAllByObjectAsync("data_source", apiVersion: null, ct);
 
-            var databases = await SearchAllByObjectAsync("database", apiVersion: ApiConstants.NotLatestApiVersion, ct);
+            var databases = await SearchAllByObjectAsync("database", ApiConstants.NotLatestApiVersion, ct);
 
             var merged = pages
                 .Concat(dataSources)
@@ -193,7 +193,6 @@ namespace Apps.NotionOAuth.DataSourceHandlers
                 .Where(g => !string.IsNullOrWhiteSpace(g.Key))
                 .Select(g => g.First())
                 .OrderByDescending(x => x.Value<DateTime?>("last_edited_time") ?? DateTime.MinValue)
-                .Take(targetCount)
                 .ToList();
 
             return (merged, null);
@@ -301,11 +300,15 @@ namespace Apps.NotionOAuth.DataSourceHandlers
         {
             var endpoint = $"{ApiEndpoints.Databases}/{databaseId}/query";
 
-            var body = new JObject { ["page_size"] = pageSize };
+            var body = new JObject
+            {
+                ["page_size"] = pageSize
+            };
+
             if (!string.IsNullOrWhiteSpace(startCursor))
                 body["start_cursor"] = startCursor;
 
-            var request = new NotionRequest(endpoint, Method.Post, Creds)
+            var request = new NotionRequest(endpoint, Method.Post, Creds, ApiConstants.NotLatestApiVersion)
                 .WithJsonBody(body);
 
             var resp = await Client.ExecuteWithErrorHandling<JObject>(request);
@@ -320,7 +323,11 @@ namespace Apps.NotionOAuth.DataSourceHandlers
         {
             var endpoint = $"{ApiEndpoints.DataSources}/{dataSourceId}/query";
 
-            var body = new JObject { ["page_size"] = pageSize };
+            var body = new JObject
+            {
+                ["page_size"] = pageSize
+            };
+
             if (!string.IsNullOrWhiteSpace(startCursor))
                 body["start_cursor"] = startCursor;
 
@@ -338,8 +345,8 @@ namespace Apps.NotionOAuth.DataSourceHandlers
             if (id.Length < 16) return NotionKind.Unknown;
 
             if (await ExistsPageAsync(id, ct)) return NotionKind.Page;
-            if (await ExistsDatabaseAsync(id, ct)) return NotionKind.Database;
             if (await ExistsDataSourceAsync(id, ct)) return NotionKind.DataSource;
+            if (await ExistsDatabaseAsync(id, ct)) return NotionKind.Database;
 
             return NotionKind.Unknown;
         }
@@ -350,15 +357,15 @@ namespace Apps.NotionOAuth.DataSourceHandlers
             catch { return false; }
         }
 
-        private async Task<bool> ExistsDatabaseAsync(string id, CancellationToken ct)
-        {
-            try { return await TryRetrieveDatabaseAsync(id, ct) is not null; }
-            catch { return false; }
-        }
-
         private async Task<bool> ExistsDataSourceAsync(string id, CancellationToken ct)
         {
             try { return await TryRetrieveDataSourceAsync(id, ct) is not null; }
+            catch { return false; }
+        }
+
+        private async Task<bool> ExistsDatabaseAsync(string id, CancellationToken ct)
+        {
+            try { return await TryRetrieveDatabaseAsync(id, ct) is not null; }
             catch { return false; }
         }
 
@@ -369,17 +376,17 @@ namespace Apps.NotionOAuth.DataSourceHandlers
             return await Client.ExecuteWithErrorHandling<JObject>(request);
         }
 
-        private async Task<JObject?> TryRetrieveDatabaseAsync(string databaseId, CancellationToken ct)
-        {
-            var endpoint = $"{ApiEndpoints.Databases}/{databaseId}";
-            var request = new NotionRequest(endpoint, Method.Get, Creds);
-            return await Client.ExecuteWithErrorHandling<JObject>(request);
-        }
-
         private async Task<JObject?> TryRetrieveDataSourceAsync(string dataSourceId, CancellationToken ct)
         {
             var endpoint = $"{ApiEndpoints.DataSources}/{dataSourceId}";
             var request = new NotionRequest(endpoint, Method.Get, Creds);
+            return await Client.ExecuteWithErrorHandling<JObject>(request);
+        }
+
+        private async Task<JObject?> TryRetrieveDatabaseAsync(string databaseId, CancellationToken ct)
+        {
+            var endpoint = $"{ApiEndpoints.Databases}/{databaseId}";
+            var request = new NotionRequest(endpoint, Method.Get, Creds, ApiConstants.NotLatestApiVersion);
             return await Client.ExecuteWithErrorHandling<JObject>(request);
         }
 
@@ -517,13 +524,22 @@ namespace Apps.NotionOAuth.DataSourceHandlers
                 return HomeVirtualId;
 
             if (type.Equals("page_id", StringComparison.OrdinalIgnoreCase))
-                return parent.Value<string>("page_id");
+            {
+                var id = parent.Value<string>("page_id");
+                return string.IsNullOrWhiteSpace(id) ? null : id;
+            }
 
             if (type.Equals("database_id", StringComparison.OrdinalIgnoreCase))
-                return parent.Value<string>("database_id");
+            {
+                var id = parent.Value<string>("database_id");
+                return string.IsNullOrWhiteSpace(id) ? null : id;
+            }
 
             if (type.Equals("data_source_id", StringComparison.OrdinalIgnoreCase))
-                return parent.Value<string>("data_source_id");
+            {
+                var id = parent.Value<string>("data_source_id");
+                return string.IsNullOrWhiteSpace(id) ? null : id;
+            }
 
             return null;
         }
