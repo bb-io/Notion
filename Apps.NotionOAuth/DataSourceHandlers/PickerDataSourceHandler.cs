@@ -8,593 +8,347 @@ using Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSource
 using Newtonsoft.Json.Linq;
 using RestSharp;
 
-namespace Apps.NotionOAuth.DataSourceHandlers
+namespace Apps.NotionOAuth.DataSourceHandlers;
+
+public class PickerDataSourceHandler(InvocationContext ctx)
+    : NotionInvocable(ctx), IAsyncFileDataSourceItemHandler
 {
-    public class PickerDataSourceHandler(InvocationContext invocationContext)
-        : NotionInvocable(invocationContext), IAsyncFileDataSourceItemHandler
+    private const string HomeId = "v:home";
+    private const string HomeName = "Notion";
+
+    private const string PagesRootId = "v:pages";
+    private const string DbRootId = "v:databases";
+
+    private const string PagePrefix = "p:";
+    private const string DbPrefix = "db:";
+    private const string DsPrefix = "ds:";
+    private const string CursorMarker = "|c:";
+
+    private const int PageSize = 50;
+
+    public async Task<IEnumerable<FileDataItem>> GetFolderContentAsync(
+        FolderContentDataSourceContext context,
+        CancellationToken ct)
     {
-        private const int DefaultPageSize = 50;
-        private const int SearchScanPageSize = 100;
+        var raw = string.IsNullOrWhiteSpace(context.FolderId) ? HomeId : context.FolderId;
+        var (id, cursor) = SplitCursor(raw);
 
-        private const string HomeVirtualId = "v:home";
-        private const string HomeDisplay = "Notion";
-
-        private const string LoadMorePrefix = "more:";
-        private const string CursorMarker = "|c:";
-
-        private const int MaxSearchScansPerRequest = 500;
-
-        public async Task<IEnumerable<FileDataItem>> GetFolderContentAsync(
-            FolderContentDataSourceContext context,
-            CancellationToken cancellationToken)
+        if (id == HomeId)
         {
-            var rawId = string.IsNullOrWhiteSpace(context.FolderId) ? HomeVirtualId : context.FolderId;
-            var (containerId, cursor) = SplitCursor(rawId);
-
-            if (containerId == HomeVirtualId)
+            return new FileDataItem[]
             {
-                var (results, nextCursor) = await SearchTopLevelAsync(cursor, DefaultPageSize, cancellationToken);
-                return BuildResultWithLoadMore(containerId, results.Select(ToPickerFolder).WhereNotNull(), nextCursor);
-            }
-
-            if (containerId.StartsWith(LoadMorePrefix, StringComparison.Ordinal))
-            {
-                var target = containerId.Substring(LoadMorePrefix.Length);
-                var (targetId, targetCursor) = SplitCursor(target);
-
-                return await GetFolderContentAsync(
-                    new FolderContentDataSourceContext
-                    {
-                        FolderId = $"{targetId}{(targetCursor is null ? "" : $"{CursorMarker}{targetCursor}")}"
-                    },
-                    cancellationToken);
-            }
-
-            var kind = await ResolveObjectTypeAsync(containerId, cancellationToken);
-
-            if (kind == NotionKind.Page)
-            {
-                var (children, nextCursor) = await GetPageChildrenAsync(containerId, cursor, DefaultPageSize, cancellationToken);
-                var mapped = children.Select(ToPickerFolder).WhereNotNull();
-                return BuildResultWithLoadMore(containerId, mapped, nextCursor);
-            }
-
-            if (kind == NotionKind.Database)
-            {
-                var (items, nextCursor) = await QueryDatabaseAsync(containerId, cursor, DefaultPageSize, cancellationToken);
-                var mapped = items.Select(ToPickerFolder).WhereNotNull();
-                return BuildResultWithLoadMore(containerId, mapped, nextCursor);
-            }
-
-            if (kind == NotionKind.DataSource)
-            {
-                var (items, nextCursor) = await QueryDataSourceAsync(containerId, cursor, DefaultPageSize, cancellationToken);
-                var mapped = items.Select(ToPickerFolder).WhereNotNull();
-                return BuildResultWithLoadMore(containerId, mapped, nextCursor);
-            }
-
-            return new List<FileDataItem>
-            {
-                new Folder { Id = HomeVirtualId, DisplayName = HomeDisplay, IsSelectable = false }
+                new Folder { Id = PagesRootId, DisplayName = "Pages", IsSelectable = false },
+                new Folder { Id = DbRootId, DisplayName = "Databases", IsSelectable = false },
             };
         }
 
-        public async Task<IEnumerable<FolderPathItem>> GetFolderPathAsync(
-            FolderPathDataSourceContext context,
-            CancellationToken cancellationToken)
+        if (id == PagesRootId)
         {
-            if (string.IsNullOrWhiteSpace(context?.FileDataItemId))
-                return new List<FolderPathItem> { new() { DisplayName = HomeDisplay, Id = HomeVirtualId } };
+            var (pages, next) = await SearchAsync("page", cursor, PageSize, ct);
+            var topLevel = pages.Where(IsWorkspaceParent);
 
-            var (rawId, _) = SplitCursor(context.FileDataItemId);
-
-            if (rawId == HomeVirtualId)
-                return new List<FolderPathItem> { new() { DisplayName = HomeDisplay, Id = HomeVirtualId } };
-
-            try
+            var items = topLevel.Select(p => new Folder
             {
-                var path = new List<FolderPathItem> { new() { DisplayName = HomeDisplay, Id = HomeVirtualId } };
-                var stack = new Stack<FolderPathItem>();
+                Id = Pack(PagePrefix, p.Value<string>("id")!),
+                DisplayName = GetPageTitle(p),
+                IsSelectable = true
+            });
 
-                var current = rawId;
-                var guard = 0;
-
-                while (!string.IsNullOrWhiteSpace(current) && guard++ < 25)
-                {
-                    if (current == HomeVirtualId)
-                        break;
-
-                    var kind = await ResolveObjectTypeAsync(current, cancellationToken);
-
-                    if (kind == NotionKind.Page)
-                    {
-                        var page = await TryRetrievePageAsync(current, cancellationToken);
-
-                        stack.Push(new FolderPathItem
-                        {
-                            Id = current,
-                            DisplayName = $"{GetTitleFromPage(page)} (Page)"
-                        });
-
-                        var parent = page?["parent"] as JObject;
-                        var next = ResolveParentToId(parent);
-                        if (string.IsNullOrWhiteSpace(next) || next == HomeVirtualId)
-                            break;
-
-                        current = next;
-                        continue;
-                    }
-
-                    if (kind == NotionKind.Database)
-                    {
-                        var db = await TryRetrieveDatabaseAsync(current, cancellationToken);
-
-                        stack.Push(new FolderPathItem
-                        {
-                            Id = current,
-                            DisplayName = $"{GetTitleFromDatabase(db)} (Database)"
-                        });
-
-                        var parent = db?["parent"] as JObject;
-                        var next = ResolveParentToId(parent);
-                        if (string.IsNullOrWhiteSpace(next) || next == HomeVirtualId)
-                            break;
-
-                        current = next;
-                        continue;
-                    }
-
-                    if (kind == NotionKind.DataSource)
-                    {
-                        var ds = await TryRetrieveDataSourceAsync(current, cancellationToken);
-
-                        stack.Push(new FolderPathItem
-                        {
-                            Id = current,
-                            DisplayName = $"{GetTitleFromDataSource(ds)} (Data source)"
-                        });
-
-                        var parent = ds?["parent"] as JObject;
-                        var next = ResolveParentToId(parent);
-                        if (string.IsNullOrWhiteSpace(next) || next == HomeVirtualId)
-                            break;
-
-                        current = next;
-                        continue;
-                    }
-
-                    break;
-                }
-
-                path.AddRange(stack);
-                return path;
-            }
-            catch
-            {
-                return new List<FolderPathItem> { new() { DisplayName = HomeDisplay, Id = HomeVirtualId } };
-            }
+            return WithLoadMore(PagesRootId, items, next);
         }
 
-        private async Task<(List<JObject> Items, string? NextCursor)> SearchTopLevelAsync(
-            string? startCursor,
-            int targetCount,
-            CancellationToken ct)
+        if (id == DbRootId)
         {
-            var pages = await SearchAllByObjectAsync("page", apiVersion: null, ct);
-            var dataSources = await SearchAllByObjectAsync("data_source", apiVersion: null, ct);
+            var (dataSources, next) = await SearchAsync("data_source", cursor, PageSize, ct);
 
-            var databases = await SearchAllByObjectAsync("database", ApiConstants.NotLatestApiVersion, ct);
-
-            var merged = pages
-                .Concat(dataSources)
-                .Concat(databases)
-                .Where(IsTopLevelWorkspaceItem)
-                .GroupBy(x => x.Value<string>("id") ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                .Where(g => !string.IsNullOrWhiteSpace(g.Key))
-                .Select(g => g.First())
-                .OrderByDescending(x => x.Value<DateTime?>("last_edited_time") ?? DateTime.MinValue)
+            var grouped = dataSources
+                .Select(ds => new
+                {
+                    Ds = ds,
+                    DbId = ds.SelectToken("parent.database_id")?.Value<string>()
+                })
+                .Where(x => !string.IsNullOrWhiteSpace(x.DbId))
+                .GroupBy(x => x.DbId!, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.Key)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            return (merged, null);
-        }
-
-        private async Task<List<JObject>> SearchAllByObjectAsync(
-            string objectValue,
-            string? apiVersion,
-            CancellationToken ct)
-        {
-            var collected = new List<JObject>();
-            string? cursor = null;
-            var guard = 0;
-
-            while (guard++ < MaxSearchScansPerRequest)
+            var items = grouped.Select(dbId => new Folder
             {
-                var (items, nextCursor) = await SearchPagedAsync(objectValue, cursor, apiVersion, ct);
-                collected.AddRange(items);
+                Id = Pack(DbPrefix, dbId),
+                DisplayName = $"Database {Short(dbId)}",
+                IsSelectable = false
+            });
 
-                if (string.IsNullOrWhiteSpace(nextCursor))
-                    break;
-
-                cursor = nextCursor;
-            }
-
-            return collected;
+            return WithLoadMore(DbRootId, items, next);
         }
 
-        private async Task<(List<JObject> Items, string? NextCursor)> SearchPagedAsync(
-            string objectValue,
-            string? startCursor,
-            string? apiVersion,
-            CancellationToken ct)
+        if (id.StartsWith(DbPrefix, StringComparison.Ordinal))
         {
-            var body = new JObject
+            var dbId = id.Substring(DbPrefix.Length);
+            var db = await RetrieveDatabase(dbId, ct);
+            var title = GetDatabaseTitle(db);
+
+            var dsArr = db["data_sources"] as JArray ?? new JArray();
+            var dsItems = dsArr
+                .OfType<JObject>()
+                .Select(x => new Folder
+                {
+                    Id = Pack(DsPrefix, x.Value<string>("id")!),
+                    DisplayName = $"{x.Value<string>("name") ?? "Data source"} ({title})",
+                    IsSelectable = true
+                });
+
+            return dsItems.Cast<FileDataItem>().ToList();
+        }
+
+        if (id.StartsWith(DsPrefix, StringComparison.Ordinal))
+        {
+            var dsId = id.Substring(DsPrefix.Length);
+            var (rows, next) = await QueryDataSource(dsId, cursor, PageSize, ct);
+
+            var items = rows.Select(p => new Folder
             {
-                ["page_size"] = SearchScanPageSize,
-                ["sort"] = new JObject
-                {
-                    ["direction"] = "descending",
-                    ["timestamp"] = "last_edited_time"
-                },
-                ["filter"] = new JObject
-                {
-                    ["property"] = "object",
-                    ["value"] = objectValue
-                }
-            };
+                Id = Pack(PagePrefix, p.Value<string>("id")!),
+                DisplayName = GetPageTitle(p),
+                IsSelectable = true
+            });
 
-            if (!string.IsNullOrWhiteSpace(startCursor))
-                body["start_cursor"] = startCursor;
-
-            var request = new NotionRequest(ApiEndpoints.Search, Method.Post, Creds, apiVersion)
-                .WithJsonBody(body);
-
-            var resp = await Client.ExecuteWithErrorHandling<JObject>(request);
-            return ParsePagedResults(resp);
+            return WithLoadMore(Pack(DsPrefix, dsId), items, next);
         }
 
-        private static bool IsTopLevelWorkspaceItem(JObject item)
+        if (id.StartsWith(PagePrefix, StringComparison.Ordinal))
         {
-            var parent = item["parent"] as JObject;
-            if (parent is null) return false;
+            var pageId = id.Substring(PagePrefix.Length);
+            var (children, next) = await GetBlockChildren(pageId, cursor, PageSize, ct);
 
-            var type = parent.Value<string>("type");
-            if (!string.Equals(type, "workspace", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            var ws = parent.Value<bool?>("workspace");
-            return ws is null || ws == true;
-        }
-
-        private async Task<(List<JObject> Items, string? NextCursor)> GetPageChildrenAsync(
-            string pageId,
-            string? startCursor,
-            int pageSize,
-            CancellationToken ct)
-        {
-            var endpoint = $"{ApiEndpoints.Blocks}/{pageId}/children?page_size={pageSize}";
-            if (!string.IsNullOrWhiteSpace(startCursor))
-                endpoint += $"&start_cursor={Uri.EscapeDataString(startCursor)}";
-
-            var request = new NotionRequest(endpoint, Method.Get, Creds);
-            var resp = await Client.ExecuteWithErrorHandling<JObject>(request);
-
-            var (items, nextCursor) = ParsePagedResults(resp);
-
-            var filtered = items
+            var folders = children
                 .Where(b =>
                 {
-                    var type = b.Value<string>("type") ?? string.Empty;
-                    return type.Equals("child_page", StringComparison.OrdinalIgnoreCase)
-                           || type.Equals("child_database", StringComparison.OrdinalIgnoreCase);
+                    var type = b.Value<string>("type");
+                    return string.Equals(type, "child_page", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(type, "child_database", StringComparison.OrdinalIgnoreCase);
                 })
-                .ToList();
-
-            return (filtered, nextCursor);
-        }
-
-        private async Task<(List<JObject> Items, string? NextCursor)> QueryDatabaseAsync(
-            string databaseId,
-            string? startCursor,
-            int pageSize,
-            CancellationToken ct)
-        {
-            var endpoint = $"{ApiEndpoints.Databases}/{databaseId}/query";
-
-            var body = new JObject
-            {
-                ["page_size"] = pageSize
-            };
-
-            if (!string.IsNullOrWhiteSpace(startCursor))
-                body["start_cursor"] = startCursor;
-
-            var request = new NotionRequest(endpoint, Method.Post, Creds, ApiConstants.NotLatestApiVersion)
-                .WithJsonBody(body);
-
-            var resp = await Client.ExecuteWithErrorHandling<JObject>(request);
-            return ParsePagedResults(resp);
-        }
-
-        private async Task<(List<JObject> Items, string? NextCursor)> QueryDataSourceAsync(
-            string dataSourceId,
-            string? startCursor,
-            int pageSize,
-            CancellationToken ct)
-        {
-            var endpoint = $"{ApiEndpoints.DataSources}/{dataSourceId}/query";
-
-            var body = new JObject
-            {
-                ["page_size"] = pageSize
-            };
-
-            if (!string.IsNullOrWhiteSpace(startCursor))
-                body["start_cursor"] = startCursor;
-
-            var request = new NotionRequest(endpoint, Method.Post, Creds)
-                .WithJsonBody(body);
-
-            var resp = await Client.ExecuteWithErrorHandling<JObject>(request);
-            return ParsePagedResults(resp);
-        }
-
-        private async Task<NotionKind> ResolveObjectTypeAsync(string id, CancellationToken ct)
-        {
-            if (id == HomeVirtualId) return NotionKind.Virtual;
-            if (id.StartsWith(LoadMorePrefix, StringComparison.Ordinal)) return NotionKind.Virtual;
-            if (id.Length < 16) return NotionKind.Unknown;
-
-            if (await ExistsPageAsync(id, ct)) return NotionKind.Page;
-            if (await ExistsDataSourceAsync(id, ct)) return NotionKind.DataSource;
-            if (await ExistsDatabaseAsync(id, ct)) return NotionKind.Database;
-
-            return NotionKind.Unknown;
-        }
-
-        private async Task<bool> ExistsPageAsync(string id, CancellationToken ct)
-        {
-            try { return await TryRetrievePageAsync(id, ct) is not null; }
-            catch { return false; }
-        }
-
-        private async Task<bool> ExistsDataSourceAsync(string id, CancellationToken ct)
-        {
-            try { return await TryRetrieveDataSourceAsync(id, ct) is not null; }
-            catch { return false; }
-        }
-
-        private async Task<bool> ExistsDatabaseAsync(string id, CancellationToken ct)
-        {
-            try { return await TryRetrieveDatabaseAsync(id, ct) is not null; }
-            catch { return false; }
-        }
-
-        private async Task<JObject?> TryRetrievePageAsync(string pageId, CancellationToken ct)
-        {
-            var endpoint = $"{ApiEndpoints.Pages}/{pageId}";
-            var request = new NotionRequest(endpoint, Method.Get, Creds);
-            return await Client.ExecuteWithErrorHandling<JObject>(request);
-        }
-
-        private async Task<JObject?> TryRetrieveDataSourceAsync(string dataSourceId, CancellationToken ct)
-        {
-            var endpoint = $"{ApiEndpoints.DataSources}/{dataSourceId}";
-            var request = new NotionRequest(endpoint, Method.Get, Creds);
-            return await Client.ExecuteWithErrorHandling<JObject>(request);
-        }
-
-        private async Task<JObject?> TryRetrieveDatabaseAsync(string databaseId, CancellationToken ct)
-        {
-            var endpoint = $"{ApiEndpoints.Databases}/{databaseId}";
-            var request = new NotionRequest(endpoint, Method.Get, Creds, ApiConstants.NotLatestApiVersion);
-            return await Client.ExecuteWithErrorHandling<JObject>(request);
-        }
-
-        private Folder? ToPickerFolder(JObject obj)
-        {
-            var notionObject = obj.Value<string>("object") ?? string.Empty;
-
-            if (notionObject.Equals("page", StringComparison.OrdinalIgnoreCase))
-            {
-                var id = obj.Value<string>("id");
-                if (string.IsNullOrWhiteSpace(id)) return null;
-
-                return new Folder
+                .Select(b =>
                 {
-                    Id = id,
-                    DisplayName = $"{GetTitleFromPage(obj)} (Page)",
-                    IsSelectable = true
-                };
-            }
+                    var type = b.Value<string>("type")!;
+                    var childId = b.Value<string>("id")!;
+                    if (type.Equals("child_page", StringComparison.OrdinalIgnoreCase))
+                        return new Folder
+                        {
+                            Id = Pack(PagePrefix, childId),
+                            DisplayName = b.SelectToken("child_page.title")?.Value<string>() ?? "Untitled",
+                            IsSelectable = true
+                        };
 
-            if (notionObject.Equals("database", StringComparison.OrdinalIgnoreCase))
-            {
-                var id = obj.Value<string>("id");
-                if (string.IsNullOrWhiteSpace(id)) return null;
-
-                return new Folder
-                {
-                    Id = id,
-                    DisplayName = $"{GetTitleFromDatabase(obj)} (Database)",
-                    IsSelectable = true
-                };
-            }
-
-            if (notionObject.Equals("data_source", StringComparison.OrdinalIgnoreCase))
-            {
-                var id = obj.Value<string>("id");
-                if (string.IsNullOrWhiteSpace(id)) return null;
-
-                return new Folder
-                {
-                    Id = id,
-                    DisplayName = $"{GetTitleFromDataSource(obj)} (Data source)",
-                    IsSelectable = true
-                };
-            }
-
-            if (notionObject.Equals("block", StringComparison.OrdinalIgnoreCase))
-            {
-                var type = obj.Value<string>("type") ?? string.Empty;
-                var blockId = obj.Value<string>("id");
-                if (string.IsNullOrWhiteSpace(blockId)) return null;
-
-                if (type.Equals("child_page", StringComparison.OrdinalIgnoreCase))
-                {
-                    var title = obj.SelectToken("child_page.title")?.Value<string>() ?? "Untitled";
                     return new Folder
                     {
-                        Id = blockId,
-                        DisplayName = $"{title} (Page)",
-                        IsSelectable = true
+                        Id = Pack(DbPrefix, childId),
+                        DisplayName = b.SelectToken("child_database.title")?.Value<string>() ?? "Untitled database",
+                        IsSelectable = false
                     };
-                }
+                });
 
-                if (type.Equals("child_database", StringComparison.OrdinalIgnoreCase))
-                {
-                    var title = obj.SelectToken("child_database.title")?.Value<string>() ?? "Untitled";
-                    return new Folder
-                    {
-                        Id = blockId,
-                        DisplayName = $"{title} (Database)",
-                        IsSelectable = true
-                    };
-                }
-            }
-
-            return null;
+            return WithLoadMore(Pack(PagePrefix, pageId), folders, next);
         }
 
-        private static string GetTitleFromPage(JObject? page)
-        {
-            var props = page?["properties"] as JObject;
-            if (props is null) return "Untitled";
+        return new[] { new Folder { Id = HomeId, DisplayName = HomeName, IsSelectable = false } };
+    }
 
+    public async Task<IEnumerable<FolderPathItem>> GetFolderPathAsync(
+        FolderPathDataSourceContext context,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(context?.FileDataItemId))
+            return new[] { new FolderPathItem { Id = HomeId, DisplayName = HomeName } };
+
+        var (raw, _) = SplitCursor(context.FileDataItemId);
+
+        if (raw is HomeId or PagesRootId or DbRootId)
+            return new[] { new FolderPathItem { Id = HomeId, DisplayName = HomeName } };
+
+        var path = new List<FolderPathItem> { new() { Id = HomeId, DisplayName = HomeName } };
+        var stack = new Stack<FolderPathItem>();
+
+        var current = raw;
+        for (var guard = 0; guard < 25 && !string.IsNullOrWhiteSpace(current); guard++)
+        {
+            if (current.StartsWith(PagePrefix, StringComparison.Ordinal))
+            {
+                var pageId = current.Substring(PagePrefix.Length);
+                var page = await RetrievePage(pageId, ct);
+                stack.Push(new FolderPathItem { Id = current, DisplayName = GetPageTitle(page) });
+
+                current = ParentToPickerId(page["parent"] as JObject);
+                continue;
+            }
+
+            if (current.StartsWith(DsPrefix, StringComparison.Ordinal))
+            {
+                var dsId = current.Substring(DsPrefix.Length);
+                var ds = await RetrieveDataSource(dsId, ct);
+                stack.Push(new FolderPathItem { Id = current, DisplayName = ds.Value<string>("name") ?? "Data source" });
+
+                current = ParentToPickerId(ds["parent"] as JObject);
+                continue;
+            }
+
+            if (current.StartsWith(DbPrefix, StringComparison.Ordinal))
+            {
+                var dbId = current.Substring(DbPrefix.Length);
+                var db = await RetrieveDatabase(dbId, ct);
+                stack.Push(new FolderPathItem { Id = current, DisplayName = GetDatabaseTitle(db) });
+
+                current = ParentToPickerId(db["parent"] as JObject);
+                continue;
+            }
+
+            break;
+        }
+
+        path.AddRange(stack);
+        return path;
+    }
+
+    private async Task<(List<JObject> Items, string? NextCursor)> SearchAsync(
+        string objectValue, string? startCursor, int pageSize, CancellationToken ct)
+    {
+        var body = new JObject
+        {
+            ["page_size"] = pageSize,
+            ["sort"] = new JObject { ["direction"] = "descending", ["timestamp"] = "last_edited_time" },
+            ["filter"] = new JObject { ["property"] = "object", ["value"] = objectValue }
+        };
+        if (!string.IsNullOrWhiteSpace(startCursor)) body["start_cursor"] = startCursor;
+
+        var req = new NotionRequest(ApiEndpoints.Search, Method.Post, Creds, apiVersion: "2025-09-03")
+            .WithJsonBody(body);
+
+        var resp = await Client.ExecuteWithErrorHandling<JObject>(req);
+        return ParsePaged(resp);
+    }
+
+    private async Task<(List<JObject> Items, string? NextCursor)> QueryDataSource(
+        string dataSourceId, string? startCursor, int pageSize, CancellationToken ct)
+    {
+        var endpoint = $"{ApiEndpoints.DataSources}/{dataSourceId}/query?page_size={pageSize}&filter_properties[]=title";
+        if (!string.IsNullOrWhiteSpace(startCursor))
+            endpoint += $"&start_cursor={Uri.EscapeDataString(startCursor)}";
+
+        var req = new NotionRequest(endpoint, Method.Post, Creds, apiVersion: "2025-09-03")
+            .WithJsonBody(new JObject());
+        var resp = await Client.ExecuteWithErrorHandling<JObject>(req);
+        return ParsePaged(resp);
+    }
+
+    private async Task<(List<JObject> Items, string? NextCursor)> GetBlockChildren(
+        string blockId, string? startCursor, int pageSize, CancellationToken ct)
+    {
+        var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children?page_size={pageSize}";
+        if (!string.IsNullOrWhiteSpace(startCursor))
+            endpoint += $"&start_cursor={Uri.EscapeDataString(startCursor)}";
+
+        var req = new NotionRequest(endpoint, Method.Get, Creds, apiVersion: "2025-09-03");
+        var resp = await Client.ExecuteWithErrorHandling<JObject>(req);
+        return ParsePaged(resp);
+    }
+
+    private Task<JObject> RetrievePage(string pageId, CancellationToken ct)
+        => Client.ExecuteWithErrorHandling<JObject>(
+            new NotionRequest($"{ApiEndpoints.Pages}/{pageId}", Method.Get, Creds, apiVersion: "2025-09-03"));
+
+    private Task<JObject> RetrieveDatabase(string dbId, CancellationToken ct)
+        => Client.ExecuteWithErrorHandling<JObject>(
+            new NotionRequest($"{ApiEndpoints.Databases}/{dbId}", Method.Get, Creds, apiVersion: "2025-09-03"));
+
+    private Task<JObject> RetrieveDataSource(string dsId, CancellationToken ct)
+        => Client.ExecuteWithErrorHandling<JObject>(
+            new NotionRequest($"{ApiEndpoints.DataSources}/{dsId}", Method.Get, Creds, apiVersion: "2025-09-03"));
+
+    private static (List<JObject> Items, string? NextCursor) ParsePaged(JObject? resp)
+    {
+        var items = (resp?["results"] as JArray)?.OfType<JObject>().ToList() ?? new();
+        var hasMore = resp?.Value<bool?>("has_more") == true;
+        var next = hasMore ? resp?.Value<string>("next_cursor") : null;
+        return (items, next);
+    }
+
+    private static IEnumerable<FileDataItem> WithLoadMore(string containerId, IEnumerable<Folder> items, string? nextCursor)
+    {
+        var list = items.Cast<FileDataItem>().ToList();
+        if (!string.IsNullOrWhiteSpace(nextCursor))
+        {
+            list.Add(new Folder
+            {
+                Id = $"{containerId}{CursorMarker}{nextCursor}",
+                DisplayName = "Load more…",
+                IsSelectable = false
+            });
+        }
+        return list;
+    }
+
+    private static (string Id, string? Cursor) SplitCursor(string raw)
+    {
+        var idx = raw.IndexOf(CursorMarker, StringComparison.Ordinal);
+        if (idx < 0) return (raw, null);
+        var id = raw[..idx];
+        var cursor = raw[(idx + CursorMarker.Length)..];
+        return (id, string.IsNullOrWhiteSpace(cursor) ? null : cursor);
+    }
+
+    private static string Pack(string prefix, string id) => $"{prefix}{id}";
+    private static string Short(string id) => id.Replace("-", "").Length > 6 ? id.Replace("-", "")[..6] : id;
+
+    private static bool IsWorkspaceParent(JObject item)
+        => string.Equals(item.SelectToken("parent.type")?.Value<string>(), "workspace", StringComparison.OrdinalIgnoreCase);
+
+    private static string ParentToPickerId(JObject? parent)
+    {
+        var type = parent?.Value<string>("type");
+        if (string.IsNullOrWhiteSpace(type)) return HomeId;
+
+        return type switch
+        {
+            "workspace" => HomeId,
+            "page_id" => Pack(PagePrefix, parent!.Value<string>("page_id")!),
+            "database_id" => Pack(DbPrefix, parent!.Value<string>("database_id")!),
+            "data_source_id" => Pack(DsPrefix, parent!.Value<string>("data_source_id")!),
+            _ => HomeId
+        };
+    }
+
+    private static string GetDatabaseTitle(JObject? db)
+    {
+        var titleArr = db?["title"] as JArray;
+        return JoinPlain(titleArr) is { Length: > 0 } t ? t : "Untitled database";
+    }
+
+    private static string GetPageTitle(JObject? page)
+    {
+        var props = page?["properties"] as JObject;
+        if (props is not null)
+        {
             foreach (var prop in props.Properties())
             {
                 var pObj = prop.Value as JObject;
-                var type = pObj?.Value<string>("type");
-                if (!"title".Equals(type, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.Equals(pObj?.Value<string>("type"), "title", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
-                var titleArr = pObj?["title"] as JArray;
-                var joined = JoinPlainText(titleArr);
-                return string.IsNullOrWhiteSpace(joined) ? "Untitled" : joined;
+                var titleArr = pObj["title"] as JArray;
+                var joined = JoinPlain(titleArr);
+                if (!string.IsNullOrWhiteSpace(joined)) return joined;
             }
-
-            return "Untitled";
         }
 
-        private static string GetTitleFromDatabase(JObject? db)
-        {
-            var titleArr = db?["title"] as JArray;
-            var joined = JoinPlainText(titleArr);
-            return string.IsNullOrWhiteSpace(joined) ? "Untitled" : joined;
-        }
+        var directTitle = JoinPlain(page?["title"] as JArray);
+        return string.IsNullOrWhiteSpace(directTitle) ? "Untitled" : directTitle;
+    }
 
-        private static string GetTitleFromDataSource(JObject? ds)
-        {
-            var name = ds?.Value<string>("name");
-            if (!string.IsNullOrWhiteSpace(name)) return name;
-
-            var titleArr = ds?["title"] as JArray;
-            var joined = JoinPlainText(titleArr);
-            return string.IsNullOrWhiteSpace(joined) ? "Untitled" : joined;
-        }
-
-        private static string JoinPlainText(JArray? richTextArray)
-        {
-            if (richTextArray is null) return string.Empty;
-
-            var parts = richTextArray
-                .OfType<JObject>()
+    private static string JoinPlain(JArray? richTextArray)
+        => richTextArray is null
+            ? string.Empty
+            : string.Concat(richTextArray.OfType<JObject>()
                 .Select(x => x.Value<string>("plain_text"))
-                .Where(s => !string.IsNullOrWhiteSpace(s));
-
-            return string.Concat(parts);
-        }
-
-        private static string? ResolveParentToId(JObject? parent)
-        {
-            if (parent is null) return null;
-
-            var type = parent.Value<string>("type");
-            if (string.IsNullOrWhiteSpace(type)) return null;
-
-            if (type.Equals("workspace", StringComparison.OrdinalIgnoreCase))
-                return HomeVirtualId;
-
-            if (type.Equals("page_id", StringComparison.OrdinalIgnoreCase))
-            {
-                var id = parent.Value<string>("page_id");
-                return string.IsNullOrWhiteSpace(id) ? null : id;
-            }
-
-            if (type.Equals("database_id", StringComparison.OrdinalIgnoreCase))
-            {
-                var id = parent.Value<string>("database_id");
-                return string.IsNullOrWhiteSpace(id) ? null : id;
-            }
-
-            if (type.Equals("data_source_id", StringComparison.OrdinalIgnoreCase))
-            {
-                var id = parent.Value<string>("data_source_id");
-                return string.IsNullOrWhiteSpace(id) ? null : id;
-            }
-
-            return null;
-        }
-
-        private static (List<JObject> Items, string? NextCursor) ParsePagedResults(JObject? resp)
-        {
-            var items = (resp?["results"] as JArray)?.OfType<JObject>().ToList() ?? new List<JObject>();
-            var hasMore = resp?.Value<bool?>("has_more") == true;
-            var nextCursor = hasMore ? resp?.Value<string>("next_cursor") : null;
-            return (items, nextCursor);
-        }
-
-        private static IEnumerable<FileDataItem> BuildResultWithLoadMore(
-            string containerId,
-            IEnumerable<Folder> items,
-            string? nextCursor)
-        {
-            var list = items.Cast<FileDataItem>().ToList();
-
-            if (!string.IsNullOrWhiteSpace(nextCursor))
-            {
-                list.Add(new Folder
-                {
-                    Id = $"{LoadMorePrefix}{containerId}{CursorMarker}{nextCursor}",
-                    DisplayName = "Load more…",
-                    IsSelectable = false
-                });
-            }
-
-            return list;
-        }
-
-        private static (string Id, string? Cursor) SplitCursor(string raw)
-        {
-            var idx = raw.IndexOf(CursorMarker, StringComparison.Ordinal);
-            if (idx < 0) return (raw, null);
-
-            var id = raw[..idx];
-            var cursor = raw[(idx + CursorMarker.Length)..];
-            return (id, string.IsNullOrWhiteSpace(cursor) ? null : cursor);
-        }
-
-        private enum NotionKind
-        {
-            Virtual,
-            Page,
-            Database,
-            DataSource,
-            Unknown
-        }
-    }
-
-    internal static class EnumerableExtensions
-    {
-        public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> source) where T : class
-            => source.Where(x => x is not null)!;
-    }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
 }
