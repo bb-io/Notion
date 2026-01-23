@@ -8,7 +8,6 @@ namespace Apps.NotionOAuth.Models.Request.Page;
 public class PageRequest
 {
     [Display("Page ID")]
-    //[DataSource(typeof(PageDataHandler))]
-    [FileDataSource(typeof(PickerDataSourceHandler))]
+    [DataSource(typeof(PageDataHandler))]
     public string PageId { get; set; }
 }

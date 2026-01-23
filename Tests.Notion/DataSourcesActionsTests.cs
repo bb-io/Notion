@@ -34,22 +34,4 @@ public class DataSourcesActionsTests : TestBase
             Console.WriteLine($"Page ID: {page.Id}, Created Time: {page.CreatedTime}, Last Edited Time: {page.LastEditedTime}");
         }
     }
-
-    [TestMethod]
-    public async Task PickerHandler()
-    {
-        // Arrange
-        var action = new PickerDataSourceHandler(InvocationContext);
-        var input = new DataSourceRequest
-        {
-            DataSourceId = string.Empty
-        };
-        // Act & Assert
-        var response = await action.GetFolderContentAsync(new Blackbird.Applications.SDK.Extensions.FileManagement.Models.FileDataSourceItems.FolderContentDataSourceContext { },
-            CancellationToken.None);
-
-        Console.WriteLine($"{Newtonsoft.Json.JsonConvert.SerializeObject(response)}");
-
-        Assert.IsNotNull(response);
-    }
 }
