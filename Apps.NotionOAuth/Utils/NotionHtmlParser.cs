@@ -73,12 +73,41 @@ public static class NotionHtmlParser
         return NormalizeId(candidate);
     }
 
-    private static string ExtractAndNormalizePageId(string html)
+    private static void RemoveEmptyDescriptionsDeep(JToken token)
     {
-        var extractedPageId = ExtractPageId(html);
-        if (string.IsNullOrEmpty(extractedPageId))
-            throw new PluginMisconfigurationException("Page ID not found in HTML");
-        return NormalizeId(extractedPageId);
+        if (token is JObject obj)
+        {
+            foreach (var prop in obj.Properties().ToList())
+            {
+                if (prop.Name == "description")
+                {
+                    if (prop.Value.Type == JTokenType.Array && !prop.Value.HasValues)
+                    {
+                        prop.Remove();
+                        continue;
+                    }
+
+                    if (prop.Value.Type == JTokenType.String && string.IsNullOrWhiteSpace(prop.Value.ToString()))
+                    {
+                        prop.Remove();
+                        continue;
+                    }
+
+                    if (prop.Value.Type == JTokenType.Null)
+                    {
+                        prop.Remove();
+                        continue;
+                    }
+                }
+
+                RemoveEmptyDescriptionsDeep(prop.Value);
+            }
+        }
+        else if (token is JArray arr)
+        {
+            foreach (var item in arr.ToList())
+                RemoveEmptyDescriptionsDeep(item);
+        }
     }
 
     private static void OrganizeBlocks(
@@ -771,6 +800,8 @@ public static class NotionHtmlParser
         {
             database.Remove("request_id");
         }
+
+        RemoveEmptyDescriptionsDeep(database);
 
         return database;
     }

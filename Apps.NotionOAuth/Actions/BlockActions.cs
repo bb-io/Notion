@@ -12,7 +12,6 @@ using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Utils.Extensions.Http;
-using DocumentFormat.OpenXml.InkML;
 using Newtonsoft.Json.Linq;
 using RestSharp;
 
@@ -22,7 +21,6 @@ namespace Apps.NotionOAuth.Actions;
 public class BlockActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     private const int MaxBlocksUploadSize = 100;
-   
 
     [Action("Get block", Description = "Get details of a specific block")]
     public async Task<BlockEntity> GetBlock([ActionParameter] BlockRequest input)
@@ -56,13 +54,13 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
     }
 
     internal Task AppendBlockChildren(string containerId, JObject[] blocks)
-     => AppendBlockChildren(containerId, blocks, ContainerType.Page, nearestPageIdForDatabaseCreation: null);
+        => AppendBlockChildren(containerId, blocks, ContainerType.Page, nearestPageIdForDatabaseCreation: null);
 
     internal async Task AppendBlockChildren(
-      string containerId,
-      JObject[] blocks,
-      ContainerType kind,
-      string? nearestPageIdForDatabaseCreation)
+        string containerId,
+        JObject[] blocks,
+        ContainerType kind,
+        string? nearestPageIdForDatabaseCreation)
     {
         var blockChunks = ChunkBlocks(blocks);
 
@@ -103,7 +101,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
     }
 
     private async Task PromoteInNodeAsync(
-         JObject node,
+        JObject node,
         string containerId,
         ContainerType containerKind,
         string? nearestPageIdForDatabaseCreation)
@@ -124,7 +122,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
     }
 
     private async Task PromoteInChildrenArrayAsync(
-         JArray children,
+        JArray children,
         string containerId,
         ContainerType containerKind,
         string? nearestPageIdForDatabaseCreation)
@@ -140,7 +138,6 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             if (isChildPage)
             {
                 var createdPageId = await CreatePromotedChildPageIdAsync(childObj, containerId, containerKind);
-
                 children[i] = BuildLinkToPageBlock(createdPageId, isDatabase: false);
                 continue;
             }
@@ -203,6 +200,11 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
         RemoveDisallowedGeneratedProperties(pageBlock);
         RemoveStatusProperties(pageBlock);
+        NormalizeSelectAndMultiSelectProperties(pageBlock);
+
+        RemoveDisallowedGeneratedProperties(pageBlock);
+        RemoveStatusProperties(pageBlock);
+
         NotionHtmlParser.RemoveNullsDeep(pageBlock);
 
         var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
@@ -299,11 +301,18 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
             RemoveDisallowedGeneratedProperties(page);
             RemoveStatusProperties(page);
+            NormalizeSelectAndMultiSelectProperties(page);
+
+            RemoveDisallowedGeneratedProperties(page);
+            RemoveStatusProperties(page);
+
+            NotionHtmlParser.RemoveNullsDeep(page);
 
             var request = new NotionRequest(ApiEndpoints.Pages, Method.Post, Creds)
                 .WithJsonBody(page, JsonConfig.Settings);
 
             var pageResponse = await Client.ExecuteWithErrorHandling<PageResponse>(request);
+
             if (children.Length > 0)
             {
                 FlattenListItemsDeepInPlace(new JArray(children));
@@ -419,41 +428,75 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         }
     }
 
-    private void FlattenListItemChildren(List<JObject> blocks)
+    private void SanitizeBlocks(List<JObject> blocks)
     {
-        for (int i = 0; i < blocks.Count; i++)
+        for (int i = blocks.Count - 1; i >= 0; i--)
         {
-            var b = blocks[i];
-            var type = b["type"]?.ToString();
-            if (type is null) continue;
-
-            if (ListItemTypes.Contains(type) && b[type] is JObject content &&
-                content.TryGetValue("children", out var childrenTok) && childrenTok is JArray children && children.Count > 0)
-            {
-                content.Remove("children");
-
-                var childBlocks = children.OfType<JObject>().ToList();
-
-                FlattenListItemChildren(childBlocks);
-
-                blocks.InsertRange(i + 1, childBlocks);
-                i += childBlocks.Count;
-            }
+            var keep = SanitizeBlockDeep(blocks[i]);
+            if (!keep)
+                blocks.RemoveAt(i);
         }
     }
 
-    private void SanitizeBlocks(IEnumerable<JObject> blocks)
+    private bool SanitizeBlockDeep(JObject block)
     {
-        foreach (var b in blocks)
+        if (string.Equals(block["type"]?.ToString(), "callout", StringComparison.OrdinalIgnoreCase))
         {
-            if (string.Equals(b["type"]?.ToString(), "callout", StringComparison.OrdinalIgnoreCase))
-            {
-                var callout = b["callout"] as JObject;
-                if (callout != null && (callout["icon"] == null || callout["icon"].Type == JTokenType.Null))
-                    callout.Remove("icon");
-            }
-            NotionHtmlParser.RemoveNullsDeep(b);
+            var callout = block["callout"] as JObject;
+            if (callout != null && (callout["icon"] == null || callout["icon"].Type == JTokenType.Null))
+                callout.Remove("icon");
         }
+
+        if (string.Equals(block["type"]?.ToString(), "video", StringComparison.OrdinalIgnoreCase))
+        {
+            var ok = NormalizeVideoBlock(block);
+            if (!ok)
+                return false;
+        }
+
+        NotionHtmlParser.RemoveNullsDeep(block);
+
+        if (block["children"] is JArray directChildren)
+        {
+            for (int i = directChildren.Count - 1; i >= 0; i--)
+            {
+                if (directChildren[i] is not JObject childObj) continue;
+                if (!SanitizeBlockDeep(childObj))
+                    directChildren.RemoveAt(i);
+            }
+        }
+
+        var type = block["type"]?.ToString();
+        if (!string.IsNullOrEmpty(type) && block[type] is JObject content && content["children"] is JArray typedChildren)
+        {
+            for (int i = typedChildren.Count - 1; i >= 0; i--)
+            {
+                if (typedChildren[i] is not JObject childObj) continue;
+                if (!SanitizeBlockDeep(childObj))
+                    typedChildren.RemoveAt(i);
+            }
+        }
+
+        return true;
+    }
+
+    private static bool NormalizeVideoBlock(JObject block)
+    {
+        if (block["video"] is not JObject video)
+            return false;
+
+        if (video["external"] is JObject || video["file_upload"] is JObject)
+            return true;
+
+        var fileUrl = video["file"]?["url"]?.ToString();
+        if (string.IsNullOrWhiteSpace(fileUrl))
+            return false;
+
+        video.Remove("file");
+        video["external"] = new JObject { ["url"] = fileUrl };
+        video["type"] = "external";
+
+        return true;
     }
 
     private void RemoveUnnecessaryProperties(JObject jObject, params string[] properties)
@@ -461,12 +504,10 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         foreach (var property in properties)
         {
             if (jObject.TryGetValue(property, out _))
-            {
                 jObject.Remove(property);
-            }
         }
     }
-    
+
     private void RemoveGroupsFromProperties(JObject database)
     {
         if (database["properties"] is JObject properties)
@@ -493,16 +534,16 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             RemoveGroups(child);
         }
     }
-    
-    // According to Notion documentation: Creating new status database properties is currently not supported. https://developers.notion.com/reference/create-a-database
+
+    // According to Notion documentation: Creating new status database properties is currently not supported.
     private void FixStatusProperties(JObject database)
     {
         if (database["properties"] is JObject properties)
         {
             foreach (var property in properties.Properties())
             {
-                if (property.Value is JObject propObj && (string.Equals((string)propObj["type"], DatabasePropertyTypes.Status,
-                        StringComparison.OrdinalIgnoreCase)))
+                if (property.Value is JObject propObj &&
+                    string.Equals((string?)propObj["type"], DatabasePropertyTypes.Status, StringComparison.OrdinalIgnoreCase))
                 {
                     if (propObj.TryGetValue("status", out _))
                     {
@@ -513,18 +554,27 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
             }
         }
     }
-    
+
     private void RemoveDisallowedGeneratedProperties(JObject page)
     {
         if (page["properties"] is JObject properties)
         {
-            var disallowedTypes = new HashSet<string> { DatabasePropertyTypes.Rollup, DatabasePropertyTypes.CreatedBy, DatabasePropertyTypes.CreatedTime, DatabasePropertyTypes.LastEditedBy, DatabasePropertyTypes.LastEditedTime };
+            var disallowedTypes = new HashSet<string>
+            {
+                DatabasePropertyTypes.Rollup,
+                DatabasePropertyTypes.CreatedBy,
+                DatabasePropertyTypes.CreatedTime,
+                DatabasePropertyTypes.LastEditedBy,
+                DatabasePropertyTypes.LastEditedTime
+            };
+
             var propsToRemove = properties.Properties()
                 .Where(prop => prop.Value is JObject propObj &&
                                propObj.TryGetValue("type", out var typeToken) &&
                                disallowedTypes.Contains((string)typeToken))
                 .Select(prop => prop.Name)
                 .ToList();
+
             foreach (var propName in propsToRemove)
             {
                 properties.Remove(propName);
@@ -542,10 +592,100 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
                                string.Equals((string)typeToken, DatabasePropertyTypes.Status, StringComparison.OrdinalIgnoreCase))
                 .Select(prop => prop.Name)
                 .ToList();
+
             foreach (var propName in propsToRemove)
             {
                 properties.Remove(propName);
             }
         }
+    }
+
+    private static void NormalizeSelectAndMultiSelectProperties(JObject page)
+    {
+        if (page["properties"] is not JObject properties)
+            return;
+
+        foreach (var prop in properties.Properties().ToList())
+        {
+            if (prop.Value is not JObject propObj)
+                continue;
+
+            var type = propObj["type"]?.ToString();
+            if (string.IsNullOrWhiteSpace(type))
+                continue;
+
+            if (string.Equals(type, "select", StringComparison.OrdinalIgnoreCase))
+            {
+                var name = ExtractOptionName(propObj["select"]);
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    properties.Remove(prop.Name);
+                    continue;
+                }
+
+                propObj["select"] = new JObject { ["name"] = name };
+                continue;
+            }
+
+            if (string.Equals(type, "multi_select", StringComparison.OrdinalIgnoreCase))
+            {
+                var names = ExtractOptionNames(propObj["multi_select"]);
+                if (names.Count == 0)
+                {
+                    properties.Remove(prop.Name);
+                    continue;
+                }
+
+                propObj["multi_select"] = new JArray(names.Select(n => new JObject { ["name"] = n }));
+                continue;
+            }
+        }
+    }
+
+    private static string? ExtractOptionName(JToken? token)
+    {
+        if (token is null || token.Type == JTokenType.Null)
+            return null;
+
+        if (token.Type == JTokenType.String)
+            return token.ToString().Trim();
+
+        if (token is JObject obj)
+        {
+            var name = obj["name"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(name))
+                return name.Trim();
+        }
+
+        return null;
+    }
+
+    private static List<string> ExtractOptionNames(JToken? token)
+    {
+        var result = new List<string>();
+
+        if (token is null || token.Type == JTokenType.Null)
+            return result;
+
+        if (token is JArray arr)
+        {
+            foreach (var item in arr)
+            {
+                var name = ExtractOptionName(item);
+                if (!string.IsNullOrWhiteSpace(name))
+                    result.Add(name);
+            }
+
+            return result;
+        }
+
+        if (token.Type == JTokenType.String)
+        {
+            var s = token.ToString().Trim();
+            if (!string.IsNullOrWhiteSpace(s))
+                result.Add(s);
+        }
+
+        return result;
     }
 }
