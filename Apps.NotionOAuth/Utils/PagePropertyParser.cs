@@ -83,7 +83,7 @@ public static class PagePropertyParser
         {
             "string" => payload["string"]?.Value<string>() ?? string.Empty,
             "number" => payload["number"]?.Value<string>() ?? string.Empty,
-            "date" => payload["date"]?["start"]?.Value<string>() ?? string.Empty,
+            "date" => payload["date"]?.Type == JTokenType.Object ? payload["date"]["start"]?.Value<string>() ?? string.Empty : string.Empty,
             "boolean" => payload["boolean"]?.Value<string>() ?? string.Empty,
             _ => string.Empty
         };
@@ -91,8 +91,14 @@ public static class PagePropertyParser
 
     private static string GetStringFromRollup(JToken? payload)
     {
-        if (payload == null || payload.Type != JTokenType.Object)
+        if (payload == null)
             return string.Empty;
+
+        // Handle primitive values (JValue) that can occur in recursive calls
+        if (payload.Type != JTokenType.Object)
+        {
+            return payload.Value<string>() ?? string.Empty;
+        }
 
         var type = payload["type"]?.Value<string>();
 
@@ -113,7 +119,7 @@ public static class PagePropertyParser
         {
             "array" => string.Join(", ", payload["array"]?.Select(i => ToString(i)) ?? []),
             "number" => payload["number"]?.Value<string>() ?? string.Empty,
-            "date" => payload["date"]?["start"]?.Value<string>() ?? string.Empty,
+            "date" => payload["date"]?.Type == JTokenType.Object ? payload["date"]["start"]?.Value<string>() ?? string.Empty : string.Empty,
             "incomplete" => "Incomplete",
             "unsupported" => "Unsupported",
             _ => string.Empty
