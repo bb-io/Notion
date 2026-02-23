@@ -132,10 +132,7 @@ For now, these types won't be transferred. We are continuously working to improv
 ## Demo video
 
 Streamline your Notion workflows with Blackbird.io
-
-import { YouTube } from '@astro-community/astro-embed-youtube';
-
-<YouTube id="https://youtu.be/WP7L8AefTMA" />
+[![Watch the video](https://img.youtube.com/vi/WP7L8AefTMA/0.jpg)](https://www.youtube.com/watch?v=WP7L8AefTMA)
 
 ### Limitations
 
