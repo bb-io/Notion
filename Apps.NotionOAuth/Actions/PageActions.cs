@@ -235,8 +235,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     {
         var response = await GetPageProperty(input.PageId, input.PropertyId);
         var type = (string?)response["type"];
-
-        var value = response["type"]!.ToString() switch
+        var value = type switch
         {
             DatabasePropertyTypes.CreatedTime => ToDateTimeSafe(response["created_time"]),
             DatabasePropertyTypes.Date => ReadDateStart(response["date"]),
@@ -247,11 +246,6 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             DatabasePropertyTypes.Rollup => ParseRollupDate(response["rollup"]),
             _ => throw new PluginApplicationException("Given ID does not stand for a date value property")
         };
-
-        if (value is null)
-        {
-            throw new PluginApplicationException("Given property is not a date or the date is empty.");
-        }
 
         return new DatePropertyResponse { PropertyValue = value };
     }
@@ -547,7 +541,10 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
     private static DateTime? ReadDateStart(JToken? dateToken)
     {
-        var start = dateToken?["start"]?.ToString();
+        if (dateToken == null || dateToken.Type == JTokenType.Null)
+            return null;
+            
+        var start = dateToken["start"]?.ToString();
         if (string.IsNullOrWhiteSpace(start))
             return null;
 
@@ -573,15 +570,19 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
     private static DateTime? ParseRollupDate(JToken? rollup)
     {
-        var rType = (string?)rollup?["type"];
+        // Check if rollup is null or is a JValue representing null
+        if (rollup == null || rollup.Type == JTokenType.Null)
+            return null;
+            
+        var rType = (string?)rollup["type"];
         if (rType == "date")
         {
-            return ReadDateStart(rollup?["date"]);
+            return ReadDateStart(rollup["date"]);
         }
 
         if (rType == "array")
         {
-            var arr = rollup?["array"] as JArray;
+            var arr = rollup["array"] as JArray;
             if (arr != null)
             {
                 foreach (var item in arr)
