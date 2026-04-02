@@ -15,7 +15,8 @@ public class GlossaryActionsTests : TestBase
         // Arrange
         var dataSource = new DataSourceRequest()
         {
-            DataSourceId = "2d887f55-25f0-80ec-8fe5-000b81251270",
+            DatabaseId = "970a9644-cf02-8355-9875-815ca6a3ca4a",
+            DataSourceId = "083a9644-cf02-83e6-91b2-07b6b1a0accb",
         };
         var input = new DownloadGlossaryRequest
         {
@@ -34,7 +35,8 @@ public class GlossaryActionsTests : TestBase
         // Arrange
         var dataSource = new DataSourceRequest()
         {
-            DataSourceId = "2b8a9644-cf02-80e7-abed-000b68742d53",
+            DatabaseId = "970a9644-cf02-8355-9875-815ca6a3ca4a",
+            DataSourceId = "083a9644-cf02-83e6-91b2-07b6b1a0accb"
         };
         var input = new DownloadGlossaryRequest
         {

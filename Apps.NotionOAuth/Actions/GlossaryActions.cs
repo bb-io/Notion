@@ -100,7 +100,7 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
             var title = XmlHelper.SanitizeForXml(rawTitle);
 
             var sourceTerm = new GlossaryTermSection(title);
-            ApplyLocaleUsageAndNotesIfExist(page, input.DefaultLocale, sourceTerm, existingPropertyNames);
+            GlossaryLocaleMetadataMapper.Apply(page, input.DefaultLocale, sourceTerm, existingPropertyNames);
             languageSections.Add(new GlossaryLanguageSection(input.DefaultLocale, [sourceTerm]));
 
             // Other properties as target languages
@@ -110,7 +110,7 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
                     continue;
 
                 var term = new GlossaryTermSection(XmlHelper.SanitizeForXml(translation));
-                ApplyLocaleUsageAndNotesIfExist(page, locale, term, existingPropertyNames);
+                GlossaryLocaleMetadataMapper.Apply(page, locale, term, existingPropertyNames);
 
                 languageSections.Add(new GlossaryLanguageSection(locale, [term]));
             }
@@ -177,57 +177,4 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
         return true;
     }
 
-    private static bool TryGetPropertyValueByName(
-     PageResponse page,
-     string propertyDisplayName,
-     out string value)
-    {
-        value = string.Empty;
-
-        if (string.IsNullOrWhiteSpace(propertyDisplayName))
-            return false;
-
-        if (page.Properties is null)
-            return false;
-
-        if (page.Properties.TryGetValue(propertyDisplayName, out var propObj) && propObj is not null)
-        {
-            value = PagePropertyParser.ToString(propObj);
-            return !string.IsNullOrWhiteSpace(value);
-        }
-
-        var match = page.Properties
-            .FirstOrDefault(kvp => string.Equals(kvp.Key, propertyDisplayName, StringComparison.OrdinalIgnoreCase));
-
-        if (string.IsNullOrWhiteSpace(match.Key) || match.Value is null)
-            return false;
-
-        value = PagePropertyParser.ToString(match.Value);
-        return !string.IsNullOrWhiteSpace(value);
-    }
-
-    private static void ApplyLocaleUsageAndNotesIfExist(
-    PageResponse page,
-    string locale,
-    GlossaryTermSection term,
-    HashSet<string> existingPropertyNames)
-    {
-        var usageProp = $"{locale} Usage";
-        if (existingPropertyNames.Contains(usageProp) &&
-            TryGetPropertyValueByName(page, usageProp, out var usage))
-        {
-            var sanitizedUsage = XmlHelper.SanitizeForXml(usage);
-
-            term.TermNotes ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            term.TermNotes["usageNote"] = sanitizedUsage;
-        }
-
-        var notesProp = $"{locale} Notes";
-        if (existingPropertyNames.Contains(notesProp) &&
-            TryGetPropertyValueByName(page, notesProp, out var note))
-        {
-            term.Notes ??= [];
-            term.Notes.Add(XmlHelper.SanitizeForXml(note));
-        }
-    }
 }

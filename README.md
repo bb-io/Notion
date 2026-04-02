@@ -77,8 +77,10 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 >
 > - `{locale} Usage`
 > - `{locale} Notes`
+> - `{locale} match type`
 >
 > Where `{locale}` must match the locale code used by your translation columns (e.g. `pt-BR`, `de`, `es`).
+> For `match type`, use `Exact` / `Fuzzy` (or `True` / `False`) and the export will map it to Phrase's `exactMatch` TBX field.
 
 
 ## Events
