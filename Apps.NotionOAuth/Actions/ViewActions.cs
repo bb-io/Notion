@@ -40,7 +40,10 @@ public class ViewActions(InvocationContext invocationContext) : NotionInvocable(
     }
 
     [Action("Get view", Description = "Get details for a specific view")]
-    public async Task<ViewResponse> GetView([ActionParameter] ViewRequest viewInput)
+    public async Task<ViewResponse> GetView(
+        [ActionParameter] OptionalDatabaseRequest databaseInput,        
+        [ActionParameter] OptionalDataSourceRequest dataSourceInput,    // These two are needed for the data handler to work
+        [ActionParameter] ViewRequest viewInput)
     {
         var request = new NotionRequest($"{ApiEndpoints.Views}/{viewInput.ViewId}", Method.Get, Creds);
         var view = await Client.ExecuteWithErrorHandling<ViewResponse>(request);
