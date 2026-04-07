@@ -1,5 +1,6 @@
 ﻿using Apps.NotionOAuth.Actions;
 using Apps.NotionOAuth.DataSourceHandlers;
+using Apps.NotionOAuth.Models.Request.DataBase;
 using Apps.NotionOAuth.Models.Request.DataSource;
 using Apps.NotionOAuth.Models.Response.Page;
 using Tests.Notion.Base;
@@ -18,9 +19,10 @@ public class DataSourcesActionsTests : TestBase
         {
             DataSourceId = "e5585fd5-8491-4cf1-9e1d-6ddfa93d2761"
         };
+        var database = new OptionalDatabaseRequest();
 
         // Act
-        var result = await action.SearchPagesInDatasource(input, new()
+        var result = await action.SearchPagesInDatasource(input, database, new()
         {
         });
 

@@ -9,4 +9,5 @@ public static class ApiEndpoints
     public const string Search = "/search";
     public const string Blocks = "/blocks";
     public const string Users = "/users";
+    public const string Views = "/views";
 }
