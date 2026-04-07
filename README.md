@@ -8,11 +8,11 @@ Blackbird is the new automation backbone for the language technology industry. B
   
 Notion is a note-taking and idea-organizing platform. This Notion application primarily centers around page and database management.  
   
- ## Before setting up
+## Before setting up
 
- Before you can connect you need to make sure that:
- - You have a Notion account
- - You have sufficient permissions in the workspace you want to connect Blackbird with.
+Before you can connect you need to make sure that:
+- You have a Notion account
+- You have sufficient permissions in the workspace you want to connect Blackbird with.
  
 ## Connecting  
   
@@ -82,6 +82,12 @@ Notion is a note-taking and idea-organizing platform. This Notion application pr
 > Where `{locale}` must match the locale code used by your translation columns (e.g. `pt-BR`, `de`, `es`).
 > For `match type`, use `Exact` / `Fuzzy` (or `True` / `False`) and the export will map it to Phrase's `exactMatch` TBX field.
 
+### Views
+
+- **Search views** searches all views in a database.
+- **Get view** gets details for a specific view.
+- **Create view** creates a new view on a database.
+- **Delete view** delete a view from a database.
 
 ## Events
 
