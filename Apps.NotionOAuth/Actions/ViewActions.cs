@@ -50,6 +50,7 @@ public class ViewActions(InvocationContext invocationContext) : NotionInvocable(
     [Action("Create view", Description = "Create a new view on a database")]
     public async Task<ViewResponse> CreateView(
         [ActionParameter] DataSourceRequest dataSourceInput,
+        [ActionParameter] DatabaseRequest databaseInput,
         [ActionParameter] CreateViewRequest createViewInput)
     {
         var body = new Dictionary<string, object?>
@@ -57,10 +58,8 @@ public class ViewActions(InvocationContext invocationContext) : NotionInvocable(
             { "data_source_id", dataSourceInput.DataSourceId },
             { "name", createViewInput.Name },
             { "type", createViewInput.Type },
+            { "database_id", databaseInput.DatabaseId }
         };
-
-        if (!string.IsNullOrEmpty(dataSourceInput.DatabaseId))
-            body.Add("database_id", dataSourceInput.DatabaseId);
 
         var request = new NotionRequest("views", Method.Post, Creds).AddJsonBody(body);
         return await Client.ExecuteWithErrorHandling<ViewResponse>(request);

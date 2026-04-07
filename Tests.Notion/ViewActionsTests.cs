@@ -54,7 +54,10 @@ public class ViewActionsTests : TestBase
 		var dsInput = new DataSourceRequest 
 		{ 
 			DataSourceId = "33a3f415-6cdc-802e-ac52-000bd7779480",
-			DatabaseId = "33a3f415-6cdc-8092-b465-d7280d6b8bed"
+        };
+		var dbInput = new DatabaseRequest
+		{
+			DatabaseId = "33a3f4156cdc8092b465d7280d6b8bed"
         };
 		var createInput = new CreateViewRequest
 		{
@@ -63,7 +66,7 @@ public class ViewActionsTests : TestBase
         };
 
         // Act
-		var result = await Actions.CreateView(dsInput, createInput);
+		var result = await Actions.CreateView(dsInput, dbInput, createInput);
 
 		// Assert
 		PrintJsonResult(result);
