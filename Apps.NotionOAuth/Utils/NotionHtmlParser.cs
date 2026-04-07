@@ -1,5 +1,6 @@
 using System.Text;
 using Apps.NotionOAuth.Constants;
+using Apps.NotionOAuth.Extensions;
 using Apps.NotionOAuth.Models;
 using Apps.NotionOAuth.Models.Request.Page;
 using Blackbird.Applications.Sdk.Common.Exceptions;
@@ -52,6 +53,9 @@ public static class NotionHtmlParser
             .ToDictionary(x => NormalizeId(x["id"]!.ToString()));
 
         OrganizeBlocks(jObjects, normalizedRootPageId, blocksById, strictMissingParents);
+
+        foreach (var jObj in jObjects)
+            ApplyChunkingToRichText(jObj);
 
         ValidateNotionBlockHierarchy(jObjects);
 
@@ -804,6 +808,59 @@ public static class NotionHtmlParser
         RemoveEmptyDescriptionsDeep(database);
 
         return database;
+    }
+
+    private static void ApplyChunkingToRichText(JToken token)
+    {
+        if (token is JObject obj)
+        {
+            foreach (var property in obj.Properties().ToList())
+            {
+                if (property.Name == "rich_text" && property.Value is JArray richTextArray)
+                {
+                    var newArray = new JArray();
+
+                    foreach (var item in richTextArray)
+                    {
+                        var contentToken = item.SelectToken("text.content");
+
+                        if (contentToken != null && contentToken.Type == JTokenType.String)
+                        {
+                            string text = contentToken.Value<string>() ?? string.Empty;
+
+                            if (text.Length > 2000)
+                            {
+                                var chunks = text.ChunkString(2000).ToList();
+
+                                if (chunks.Count > 100)
+                                    throw new PluginMisconfigurationException(
+                                        "A single block's text exceeds the 200000 characters limit");
+
+                                foreach (var chunk in chunks)
+                                {
+                                    var clonedItem = (JObject)item.DeepClone();
+                                    clonedItem["text"]["content"] = chunk;
+                                    newArray.Add(clonedItem);
+                                }
+                            }
+                            else
+                                newArray.Add(item);
+                            }
+                        else
+                            newArray.Add(item);
+                    }
+
+                    property.Value = newArray;
+                }
+                else
+                    ApplyChunkingToRichText(property.Value);
+            }
+        }
+        else if (token is JArray array)
+        {
+            foreach (var item in array)
+                ApplyChunkingToRichText(item);
+        }
     }
 
     private static void ValidateNotionBlockHierarchy(List<JObject> blocks)
