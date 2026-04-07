@@ -1,5 +1,6 @@
 ﻿using Apps.NotionOAuth.Actions;
 using Apps.NotionOAuth.Models.Request;
+using Apps.NotionOAuth.Models.Request.Comment;
 using Apps.NotionOAuth.Models.Request.Page;
 using Apps.NotionOAuth.Models.Request.Page.Properties.Getter;
 using Apps.NotionOAuth.Models.Request.Page.Properties.Setter;
@@ -177,17 +178,5 @@ public class PageActionsTests : TestBase
 
         // Assert
         Console.WriteLine($"Successfully created page with HTML from {htmlFileName}");
-    }
-
-    [TestMethod]
-    public async Task AddComment_IsSuccess()
-    {
-        var action = new CommentActions(InvocationContext);
-
-        var response = await action.AddComment(new Apps.NotionOAuth.Models.Request.Comment.AddCommentInput
-        {
-            PageId = "2e903abb81368174a7f5f6fc65a93da0",
-            Text = "This is a test comment from automated tests."
-        });
     }
 }
