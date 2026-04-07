@@ -36,11 +36,13 @@ public class ViewActionsTests : TestBase
 	[TestMethod]
 	public async Task GetView_ReturnsView()
 	{
-		// Arrange
-		var viewInput = new ViewRequest { ViewId = "33b3f415-6cdc-80a4-93b4-000c9b8091c3" };
+        // Arrange
+        var database = new OptionalDatabaseRequest();
+		var dataSource = new OptionalDataSourceRequest();
+        var viewInput = new ViewRequest { ViewId = "33b3f415-6cdc-80a4-93b4-000c9b8091c3" };
 
 		// Act
-		var result = await Actions.GetView(viewInput);
+		var result = await Actions.GetView(database, dataSource, viewInput);
 
 		// Assert
 		PrintJsonResult(result);

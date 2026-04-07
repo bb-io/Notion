@@ -2,6 +2,7 @@
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Entities;
+using Apps.NotionOAuth.Models.Request.DataBase;
 using Apps.NotionOAuth.Models.Request.DataSource;
 using Apps.NotionOAuth.Models.Response.DataBase;
 using Apps.NotionOAuth.Models.Response.Page;
@@ -17,7 +18,9 @@ namespace Apps.NotionOAuth.Actions;
 public class DataSourcesActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     [Action("Search pages in datasource", Description = "Search pages in a specific datasource")]
-    public async Task<ListPagesResponse> SearchPagesInDatasource([ActionParameter] DataSourceRequest dataSourceRequest,
+    public async Task<ListPagesResponse> SearchPagesInDatasource(
+        [ActionParameter] DataSourceRequest dataSourceRequest,
+        [ActionParameter] OptionalDatabaseRequest databaseInput,    //  For data handler
         [ActionParameter] SearchPagesInDataSourceRequest searchRequest)
     {
         var endpoint = $"{ApiEndpoints.DataSources}/{dataSourceRequest.DataSourceId}/query";

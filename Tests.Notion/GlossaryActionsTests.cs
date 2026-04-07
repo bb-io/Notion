@@ -1,6 +1,7 @@
 ﻿using Tests.Notion.Base;
 using Apps.NotionOAuth.Actions;
 using Apps.NotionOAuth.Models.Request.DataSource;
+using Apps.NotionOAuth.Models.Request.DataBase;
 
 namespace Tests.Notion;
 
@@ -17,12 +18,13 @@ public class GlossaryActionsTests : TestBase
         {
             DataSourceId = "083a9644-cf02-83e6-91b2-07b6b1a0accb",
         };
+        var optionalDatabaseInput = new OptionalDatabaseRequest();
         var input = new DownloadGlossaryRequest
         {
         };
 
         // Act
-        var result = await _actions.DownloadGlossary(dataSource, input);
+        var result = await _actions.DownloadGlossary(dataSource, optionalDatabaseInput, input);
 
         // Assert
         Assert.AreEqual("Glossary.tbx", result.Glossary.Name);
@@ -36,6 +38,7 @@ public class GlossaryActionsTests : TestBase
         {
             DataSourceId = "083a9644-cf02-83e6-91b2-07b6b1a0accb"
         };
+        var databaseInput = new OptionalDatabaseRequest();
         var input = new DownloadGlossaryRequest
         {
             PropertiesAsTargetLanguages = ["UoW%40", "yX%3BK", "%7C%3Do%3F"],
@@ -51,7 +54,7 @@ public class GlossaryActionsTests : TestBase
         };
 
         // Act
-        var result = await _actions.DownloadGlossary(dataSource, input);
+        var result = await _actions.DownloadGlossary(dataSource, databaseInput, input);
 
         // Assert
         Assert.AreEqual("Glossary Page.tbx", result.Glossary.Name);

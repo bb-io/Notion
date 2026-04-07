@@ -1,6 +1,7 @@
 ﻿using Apps.NotionOAuth.Api;
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Invocables;
+using Apps.NotionOAuth.Models.Request.DataBase;
 using Apps.NotionOAuth.Models.Request.DataSource;
 using Apps.NotionOAuth.Models.Response.DataSource;
 using Apps.NotionOAuth.Models.Response.Page;
@@ -24,6 +25,7 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
     [Action("Download glossary", Description = "Downloads database pages into an interoperable glosary.")]
     public async Task<DownloadGlossaryResponse> DownloadGlossary(
         [ActionParameter] DataSourceRequest dataSource,
+        [ActionParameter] OptionalDatabaseRequest databaseInput,    //  For data handler
         [ActionParameter] DownloadGlossaryRequest input)
     {
         var fieldsCount = input.FilterFields?.Count ?? 0;
