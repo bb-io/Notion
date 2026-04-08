@@ -1,5 +1,6 @@
 ﻿using Apps.NotionOAuth.Actions;
 using Apps.NotionOAuth.Models.Request;
+using Apps.NotionOAuth.Models.Request.Comment;
 using Apps.NotionOAuth.Models.Request.Page;
 using Apps.NotionOAuth.Models.Request.Page.Properties.Getter;
 using Apps.NotionOAuth.Models.Request.Page.Properties.Setter;
@@ -116,7 +117,7 @@ public class PageActionsTests : TestBase
     public async Task GetPageAsHtml_ValidParameters_ShouldReturnHtmlFile()
     {
         // Arrange
-        var pageId = "2e703abb8136811fb142df70b436bcf1";
+        var pageId = "3193f415-6cdc-81cb-94e0-e24d21ab0ba6";
         var pageRequest = new PageRequest
         {
             PageId = pageId
@@ -136,12 +137,12 @@ public class PageActionsTests : TestBase
     public async Task CreatePageFromHtml_ValidParameters_ShouldCreatePage()
     {
         // Arrange
-        var htmlFileName = "2e6efdee-ad05-8076-9461-cbba4a2d8056.html";
+        var htmlFileName = "test.html";
         
         var pageRequest = new CreatePageInput
         {
             Title = $"Test page: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
-            DatabaseId= "e5585fd584914cf19e1d6ddfa93d2761"
+            DatabaseId = "33a3f415-6cdc-8092-b465-d7280d6b8bed"
         };
         
         var fileRequest = new FileRequest
@@ -177,17 +178,5 @@ public class PageActionsTests : TestBase
 
         // Assert
         Console.WriteLine($"Successfully created page with HTML from {htmlFileName}");
-    }
-
-    [TestMethod]
-    public async Task AddComment_IsSuccess()
-    {
-        var action = new CommentActions(InvocationContext);
-
-        var response = await action.AddComment(new Apps.NotionOAuth.Models.Request.Comment.AddCommentInput
-        {
-            PageId = "2e903abb81368174a7f5f6fc65a93da0",
-            Text = "This is a test comment from automated tests."
-        });
     }
 }

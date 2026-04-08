@@ -29,6 +29,6 @@ public class CommentEntity
         DiscussionId = response.DiscussionId;
         CreatedTime = response.CreatedTime;
         LastEditedTime = response.LastEditedTime;
-        Text = response.RichText.First().PlainText;
+        Text = string.Join(string.Empty, response.RichText.Select(x => x.PlainText));
     }
 }

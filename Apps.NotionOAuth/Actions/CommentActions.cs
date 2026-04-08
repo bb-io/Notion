@@ -34,7 +34,7 @@ public class CommentActions(InvocationContext invocationContext) : NotionInvocab
     {
         if (input.PageId is null && input.DiscussionId is null)
             throw new("You must specify one: either page ID or discussion ID");
-
+                
         var request = new NotionRequest(ApiEndpoints.Comments, Method.Post, Creds)
             .WithJsonBody(new AddCommentRequest(input), JsonConfig.Settings);
 
