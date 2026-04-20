@@ -17,28 +17,35 @@ public class CallbackEvents
         [WebhookParameter, Display("Custom header key")] string? filterHeaderName,
         [WebhookParameter, Display("Custom header contains")] string? filterHeaderExpectedPart)
     {
-        if (string.IsNullOrWhiteSpace(filterHeaderName) != string.IsNullOrWhiteSpace(filterHeaderExpectedPart))
+        var hasHeaderName = !string.IsNullOrWhiteSpace(filterHeaderName);
+        var hasExpectedPart = !string.IsNullOrWhiteSpace(filterHeaderExpectedPart);
+
+        if (hasHeaderName != hasExpectedPart)
         {
             return Task.FromResult(new WebhookResponse<ButtonClickedResponse>
             {
-                ReceivedWebhookRequestType = WebhookRequestType.Preflight, // don't start flight
-                HttpResponseMessage = new HttpResponseMessage(statusCode: HttpStatusCode.OK),
+                ReceivedWebhookRequestType = WebhookRequestType.Preflight,
+                HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
                 Result = null
             });
         }
 
-        if (!string.IsNullOrWhiteSpace(filterHeaderName)
-            && webhookRequest.Headers.TryGetValue(filterHeaderName, out var filterHeaderValue)
-            && !filterHeaderValue.Contains(filterHeaderExpectedPart!, StringComparison.OrdinalIgnoreCase))
+        if (hasHeaderName && hasExpectedPart)
         {
-            // don't start flight as filter header is present
-            // but doesn't match the expected part
-            return Task.FromResult(new WebhookResponse<ButtonClickedResponse>
+            var matchedHeader = webhookRequest.Headers
+                .FirstOrDefault(x => string.Equals(x.Key, filterHeaderName, StringComparison.OrdinalIgnoreCase));
+
+            if (string.IsNullOrWhiteSpace(matchedHeader.Key) ||
+                string.IsNullOrWhiteSpace(matchedHeader.Value) ||
+                !matchedHeader.Value.Contains(filterHeaderExpectedPart!, StringComparison.OrdinalIgnoreCase))
             {
-                ReceivedWebhookRequestType = WebhookRequestType.Preflight, 
-                HttpResponseMessage = new HttpResponseMessage(statusCode: HttpStatusCode.OK),
-                Result = null
-            });
+                return Task.FromResult(new WebhookResponse<ButtonClickedResponse>
+                {
+                    ReceivedWebhookRequestType = WebhookRequestType.Preflight,
+                    HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
+                    Result = null
+                });
+            }
         }
 
         var body = JsonConvert.DeserializeObject<ButtonRequest>(webhookRequest.Body.ToString() ?? string.Empty)
@@ -46,9 +53,9 @@ public class CallbackEvents
 
         return Task.FromResult(new WebhookResponse<ButtonClickedResponse>
         {
-            ReceivedWebhookRequestType = WebhookRequestType.Default, // start flight
-            HttpResponseMessage = new HttpResponseMessage(statusCode: HttpStatusCode.OK),
-            Result = new ButtonClickedResponse()
+            ReceivedWebhookRequestType = WebhookRequestType.Default,
+            HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
+            Result = new ButtonClickedResponse
             {
                 PageId = body.Data.PageId,
                 ParentType = body.Data.Parent.Type,
