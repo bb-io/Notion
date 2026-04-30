@@ -214,7 +214,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
         if (children.Length > 0)
         {
-            FlattenListItemsDeepInPlace(new JArray(children));
+            children = FlattenTopLevelBlocks(children);
             await AppendBlockChildren(created.Id, children, ContainerType.Page, nearestPageIdForDatabaseCreation: null);
         }
 
@@ -243,7 +243,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
         var created = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
 
-        FlattenListItemsDeepInPlace(new JArray(children));
+        children = FlattenTopLevelBlocks(children);
         await AppendBlockChildren(created.Id, children, ContainerType.Database, nearestPageIdForDatabaseCreation: parentPageId);
 
         return created.Id;
@@ -315,7 +315,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
             if (children.Length > 0)
             {
-                FlattenListItemsDeepInPlace(new JArray(children));
+                children = FlattenTopLevelBlocks(children);
                 await AppendBlockChildren(pageResponse.Id, children, ContainerType.Page, nearestPageIdForDatabaseCreation: null);
             }
         }
@@ -349,7 +349,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
             var createdDatabase = await Client.ExecuteWithErrorHandling<DatabaseResponse>(request);
 
-            FlattenListItemsDeepInPlace(new JArray(children));
+            children = FlattenTopLevelBlocks(children);
             await AppendBlockChildren(createdDatabase.Id, children, ContainerType.Database, nearestPageIdForDatabaseCreation: parentPageId);
         }
     }
@@ -357,7 +357,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
     private async Task ProcessBlocks(string blockId, List<JObject> blockChunk)
     {
         SanitizeBlocks(blockChunk);
-        FlattenListItemsDeepInPlace(new JArray(blockChunk));
+        FlattenTopLevelBlocksInPlace(blockChunk);
 
         var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
         var request = new NotionRequest(endpoint, Method.Patch, Creds)
@@ -371,6 +371,39 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         "bulleted_list_item",
         "numbered_list_item"
     };
+
+    private static readonly HashSet<string> LayoutContainerTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "column_list",
+        "column"
+    };
+
+    private static readonly HashSet<string> HeadingTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "heading_1",
+        "heading_2",
+        "heading_3",
+        "heading_4"
+    };
+
+    private JObject[] FlattenTopLevelBlocks(JObject[] blocks)
+    {
+        var list = blocks.ToList();
+        FlattenTopLevelBlocksInPlace(list);
+        return list.ToArray();
+    }
+
+    private void FlattenTopLevelBlocksInPlace(List<JObject> blocks)
+    {
+        var arr = new JArray(blocks);
+        ProcessChildrenArray(arr);
+
+        blocks.Clear();
+        blocks.AddRange(arr.OfType<JObject>());
+
+        foreach (var block in blocks)
+            FlattenListItemsDeepInPlace(block);
+    }
 
     private void FlattenListItemsDeepInPlace(JToken node)
     {
@@ -409,6 +442,50 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
 
             var type = item["type"]?.ToString();
             if (type is null) continue;
+
+            if (LayoutContainerTypes.Contains(type) && item[type] is JObject layoutContent)
+            {
+                var layoutChildren = layoutContent["children"] as JArray;
+                children.RemoveAt(i);
+
+                if (layoutChildren is { Count: > 0 })
+                {
+                    FlattenListItemsDeepInPlace(layoutChildren);
+
+                    var insertAt = i;
+                    foreach (var child in layoutChildren.OfType<JObject>())
+                    {
+                        children.Insert(insertAt, child);
+                        insertAt++;
+                    }
+
+                    i--;
+                }
+                else
+                {
+                    i--;
+                }
+
+                continue;
+            }
+
+            if (HeadingTypes.Contains(type) && item[type] is JObject headingContent
+                && headingContent.TryGetValue("children", out var headingChildrenToken) && headingChildrenToken is JArray headingChildren
+                && headingChildren.Count > 0)
+            {
+                headingContent.Remove("children");
+
+                FlattenListItemsDeepInPlace(headingChildren);
+                var insertAt = i + 1;
+                foreach (var child in headingChildren.OfType<JObject>())
+                {
+                    children.Insert(insertAt, child);
+                    insertAt++;
+                }
+
+                i = insertAt - 1;
+                continue;
+            }
 
             if (ListItemTypes.Contains(type) && item[type] is JObject content
                 && content.TryGetValue("children", out var chTok) && chTok is JArray liChildren && liChildren.Count > 0)
@@ -561,6 +638,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         {
             var disallowedTypes = new HashSet<string>
             {
+                DatabasePropertyTypes.Formula,
                 DatabasePropertyTypes.Rollup,
                 DatabasePropertyTypes.CreatedBy,
                 DatabasePropertyTypes.CreatedTime,
