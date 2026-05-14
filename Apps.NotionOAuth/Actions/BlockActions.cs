@@ -4,6 +4,7 @@ using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.Models.Request.Block;
+using Apps.NotionOAuth.Models.Response;
 using Apps.NotionOAuth.Models.Response.Block;
 using Apps.NotionOAuth.Models.Response.DataBase;
 using Apps.NotionOAuth.Models.Response.Page;
@@ -21,6 +22,18 @@ namespace Apps.NotionOAuth.Actions;
 public class BlockActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     private const int MaxBlocksUploadSize = 100;
+
+    private sealed class BlockChildrenSnapshot
+    {
+        public required JObject Block { get; init; }
+
+        public required JObject[] Children { get; init; }
+    }
+
+    private static readonly HashSet<string> PreserveInlineChildrenTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "table"
+    };
 
     [Action("Get block", Description = "Get details of a specific block")]
     public async Task<BlockEntity> GetBlock([ActionParameter] BlockRequest input)
@@ -54,31 +67,66 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
     }
 
     internal Task AppendBlockChildren(string containerId, JObject[] blocks)
-        => AppendBlockChildren(containerId, blocks, ContainerType.Page, nearestPageIdForDatabaseCreation: null);
+        => AppendBlockChildren(
+            appendTargetId: containerId,
+            blocks,
+            legalParentId: containerId,
+            legalParentKind: ContainerType.Page,
+            nearestPageIdForDatabaseCreation: null);
 
     internal async Task AppendBlockChildren(
         string containerId,
         JObject[] blocks,
         ContainerType kind,
         string? nearestPageIdForDatabaseCreation)
+        => await AppendBlockChildren(
+            appendTargetId: containerId,
+            blocks,
+            legalParentId: containerId,
+            legalParentKind: kind,
+            nearestPageIdForDatabaseCreation);
+
+    private async Task AppendBlockChildren(
+        string appendTargetId,
+        JObject[] blocks,
+        string legalParentId,
+        ContainerType legalParentKind,
+        string? nearestPageIdForDatabaseCreation)
     {
         var blockChunks = ChunkBlocks(blocks);
 
         foreach (var blockChunk in blockChunks)
         {
-            await PromoteNestedPagesAndDatabasesAsync(blockChunk, containerId, kind, nearestPageIdForDatabaseCreation);
+            await PromoteNestedPagesAndDatabasesAsync(
+                blockChunk,
+                legalParentId,
+                legalParentKind,
+                nearestPageIdForDatabaseCreation);
 
             if (blockChunk.Any(x => x["type"]?.ToString() == "child_page"))
             {
-                await ProcessChildPages(containerId, kind, blockChunk, nearestPageIdForDatabaseCreation);
+                await ProcessChildPages(
+                    legalParentId,
+                    legalParentKind,
+                    blockChunk,
+                    nearestPageIdForDatabaseCreation);
             }
             else if (blockChunk.Any(x => x["object"]?.ToString() == "database"))
             {
-                await ProcessDatabases(containerId, kind, blockChunk, nearestPageIdForDatabaseCreation);
+                await ProcessDatabases(
+                    legalParentId,
+                    legalParentKind,
+                    blockChunk,
+                    nearestPageIdForDatabaseCreation);
             }
             else
             {
-                await ProcessBlocks(containerId, blockChunk);
+                await ProcessBlocks(
+                    appendTargetId,
+                    legalParentId,
+                    legalParentKind,
+                    nearestPageIdForDatabaseCreation,
+                    blockChunk);
             }
         }
     }
@@ -354,16 +402,98 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         }
     }
 
-    private async Task ProcessBlocks(string blockId, List<JObject> blockChunk)
+    private async Task ProcessBlocks(
+        string appendTargetId,
+        string legalParentId,
+        ContainerType legalParentKind,
+        string? nearestPageIdForDatabaseCreation,
+        List<JObject> blockChunk)
     {
         SanitizeBlocks(blockChunk);
         FlattenTopLevelBlocksInPlace(blockChunk);
 
-        var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";
-        var request = new NotionRequest(endpoint, Method.Patch, Creds)
-            .WithJsonBody(new ChildrenRequest { Children = blockChunk.ToArray() }, JsonConfig.Settings);
+        if (!blockChunk.Any())
+        {
+            return;
+        }
 
-        await Client.ExecuteWithErrorHandling(request);
+        var snapshots = SnapshotAndDetachChildren(blockChunk);
+
+        var endpoint = $"{ApiEndpoints.Blocks}/{appendTargetId}/children";
+        var request = new NotionRequest(endpoint, Method.Patch, Creds)
+            .WithJsonBody(new ChildrenRequest { Children = snapshots.Select(x => x.Block).ToArray() }, JsonConfig.Settings);
+
+        var response = await Client.ExecuteWithErrorHandling<PaginationResponse<JObject>>(request);
+        var createdBlocks = response.Results?.OfType<JObject>().ToList() ?? [];
+
+        if (createdBlocks.Count != snapshots.Count)
+        {
+            throw new InvalidOperationException(
+                $"Expected {snapshots.Count} created block(s) from Notion, but received {createdBlocks.Count}.");
+        }
+
+        for (int i = 0; i < snapshots.Count; i++)
+        {
+            var children = snapshots[i].Children;
+            if (children.Length == 0)
+            {
+                continue;
+            }
+
+            var createdBlockId = createdBlocks[i]["id"]?.ToString()
+                ?? throw new InvalidOperationException("Notion did not return an ID for an appended block.");
+
+            await AppendBlockChildren(
+                appendTargetId: createdBlockId,
+                children,
+                legalParentId,
+                legalParentKind,
+                nearestPageIdForDatabaseCreation);
+        }
+    }
+
+    private List<BlockChildrenSnapshot> SnapshotAndDetachChildren(List<JObject> blocks)
+    {
+        var snapshots = new List<BlockChildrenSnapshot>(blocks.Count);
+
+        foreach (var block in blocks)
+        {
+            var children = ExtractAndDetachChildren(block);
+            snapshots.Add(new BlockChildrenSnapshot
+            {
+                Block = block,
+                Children = children
+            });
+        }
+
+        return snapshots;
+    }
+
+    private JObject[] ExtractAndDetachChildren(JObject block)
+    {
+        var children = new List<JObject>();
+        var type = block["type"]?.ToString();
+
+        if (!string.IsNullOrWhiteSpace(type) && PreserveInlineChildrenTypes.Contains(type))
+        {
+            return [];
+        }
+
+        if (block["children"] is JArray directChildren)
+        {
+            children.AddRange(directChildren.OfType<JObject>().Select(x => (JObject)x.DeepClone()));
+            block.Remove("children");
+        }
+
+        if (!string.IsNullOrEmpty(type) &&
+            block[type] is JObject typedContent &&
+            typedContent["children"] is JArray typedChildren)
+        {
+            children.AddRange(typedChildren.OfType<JObject>().Select(x => (JObject)x.DeepClone()));
+            typedContent.Remove("children");
+        }
+
+        return children.ToArray();
     }
 
     private static readonly HashSet<string> ListItemTypes = new(StringComparer.OrdinalIgnoreCase)
