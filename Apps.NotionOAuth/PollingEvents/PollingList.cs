@@ -10,7 +10,7 @@ using Blackbird.Applications.Sdk.Common.Polling;
 
 namespace Apps.NotionOAuth.PollingEvents;
 
-[PollingEventList]
+[PollingEventList("Pages")]
 public class PollingList(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
     [PollingEvent("On pages created", "Monitors pages whose has created within a specified time range.")]
