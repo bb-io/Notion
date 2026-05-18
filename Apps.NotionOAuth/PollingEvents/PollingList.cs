@@ -4,6 +4,7 @@ using Apps.NotionOAuth.Models.Response.Page;
 using Apps.NotionOAuth.PollingEvents.Models.Memory;
 using Apps.NotionOAuth.PollingEvents.Models.Requests;
 using Apps.NotionOAuth.Services;
+using Blackbird.Applications.SDK.Blueprints;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Common.Polling;
 
@@ -17,7 +18,8 @@ public class PollingList(InvocationContext invocationContext) : NotionInvocable(
         PollingEventRequest<DateMemory> request)
         => HandlePagesPolling(request,
             x => x.CreatedTime > request.Memory?.LastInteractionDate);
-
+    
+    [BlueprintEventDefinition(BlueprintEvent.ContentCreatedOrUpdatedMultiple)]
     [PollingEvent("On pages updated", "Monitors pages whose has updated within a specified time range.")]
     public Task<PollingEventResponse<DateMemory, ListPagesResponse>> OnPagesUpdated(
         PollingEventRequest<DateMemory> request)
@@ -39,7 +41,7 @@ public class PollingList(InvocationContext invocationContext) : NotionInvocable(
         var databaseService = new DatabaseService(InvocationContext);
         var pages = await databaseService.QueryPagesInDatabase(queryRequest);
         var pageStatusEntities =
-            pages.Select(x => new PageStatusEntity(x.Id, queryRequest.StatusPropertyValue)).ToList();
+            pages.Select(x => new PageStatusEntity(x.ContentId, queryRequest.StatusPropertyValue)).ToList();
 
         if (request.Memory == null)
         {
@@ -59,7 +61,7 @@ public class PollingList(InvocationContext invocationContext) : NotionInvocable(
             .Where(x => !memoryPageStatusEntities.Any(y => y.PageId == x.PageId && y.PageStatus == x.PageStatus))
             .ToList();
 
-        var pageEntities = pages.Where(x => pagesWithUpdatedStatuses.Any(y => x.Id == y.PageId)).ToArray();
+        var pageEntities = pages.Where(x => pagesWithUpdatedStatuses.Any(y => x.ContentId == y.PageId)).ToList();
         return new()
         {
             FlyBird = pagesWithUpdatedStatuses.Any(),
@@ -109,7 +111,7 @@ public class PollingList(InvocationContext invocationContext) : NotionInvocable(
             {
                 LastInteractionDate = DateTime.UtcNow
             },
-            Result = new(items.Select(x => new PageEntity(x)).ToArray())
+            Result = new(items.Select(x => new PageEntity(x)).ToList())
         };
     }
 }

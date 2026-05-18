@@ -26,6 +26,9 @@ using Apps.NotionOAuth.Extensions;
 using Blackbird.Applications.Sdk.Common.Exceptions;
 using Newtonsoft.Json;
 using System.Globalization;
+using Blackbird.Applications.SDK.Blueprints;
+using Blackbird.Filters.Transformations;
+using Blackbird.Filters.Xliff.Xliff2;
 
 namespace Apps.NotionOAuth.Actions;
 
@@ -33,6 +36,7 @@ namespace Apps.NotionOAuth.Actions;
 public class PageActions(InvocationContext invocationContext, IFileManagementClient fileManagementClient)
     : NotionInvocable(invocationContext)
 {
+    [BlueprintActionDefinition(BlueprintAction.SearchContent)]
     [Action("Search pages", Description = "Search pages based on specified criteria")]
     public async Task<ListPagesResponse> ListPages([ActionParameter] ListRequest input)
     {
@@ -41,7 +45,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             .Select(x => new PageEntity(x))
             .Where(x => x.LastEditedTime > (input.EditedSince ?? default))
             .Where(x => x.CreatedTime > (input.CreatedSince ?? default))
-            .ToArray();
+            .ToList();
 
         return new(pages);
     }
@@ -78,21 +82,20 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var html = Encoding.UTF8.GetString(fileBytes);
 
         var blocks = NotionHtmlParser.ParseHtml(html,rootPageId: null,requireRootPageId: false,strictMissingParents: false);
-        await new BlockActions(InvocationContext).AppendBlockChildren(page.Id, blocks);
+        await new BlockActions(InvocationContext).AppendBlockChildren(page.ContentId, blocks);
         return page;
     }
 
-    [Action("Get page as HTML", Description = "Get content of a specific page as HTML")]
-    public async Task<FileResponse> GetPageAsHtml(
-        [ActionParameter] PageRequest page,
-        [ActionParameter] GetPageAsHtmlRequest pageAsHtmlRequest)
+    [BlueprintActionDefinition(BlueprintAction.DownloadContent)]
+    [Action("Download page content", Description = "Download content of a specific page as HTML")]
+    public async Task<GetPageAsHtmlResponse> GetPageAsHtml([ActionParameter] GetPageAsHtmlRequest input)
     {
-        var response = await GetAllBlockChildrenRecursively(page.PageId, pageAsHtmlRequest);
-        var html = NotionHtmlParser.ParseBlocks(page.PageId, response.ToArray(), pageAsHtmlRequest);
+        var response = await GetAllBlockChildrenRecursively(input.ContentId, input);
+        var html = NotionHtmlParser.ParseBlocks(input.ContentId, response.ToArray(), input);
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(html));
-        var file = await fileManagementClient.UploadAsync(stream, MediaTypeNames.Text.Html, $"{page.PageId}.html");
-        return new() { File = file };
+        var file = await fileManagementClient.UploadAsync(stream, MediaTypeNames.Text.Html, $"{input.ContentId}.html");
+        return new(file);
     }
 
     [Action("Get page as HTML (Debug)", Description = "Get content of a specific page as HTML (Debug)")]
@@ -106,18 +109,24 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         return new() { Json = JsonConvert.SerializeObject(response) };
     }
 
-    [Action("Update page from HTML", Description = "Update specific page from an HTML file")]
-    public async Task UpdatePageFromHtml(
-        [ActionParameter] PageOptionalRequest page,
-        [ActionParameter] FileRequest file)
+    [BlueprintActionDefinition(BlueprintAction.UploadContent)]
+    [Action("Upload page content", Description = "Update specific page from a file")]
+    public async Task UpdatePageFromHtml([ActionParameter] UpdatePageFromHtmlRequest input)
     {
-        var fileStream = await fileManagementClient.DownloadAsync(file.File);
-        var fileBytes = await fileStream.GetByteData();
-        var html = Encoding.UTF8.GetString(fileBytes);
+        var file = await fileManagementClient.DownloadAsync(input.Content);
+        var html = Encoding.UTF8.GetString(await file.GetByteData());
 
+        if (Xliff2Serializer.IsXliff2(html))
+        {
+            html = Transformation.Parse(html, input.Content.Name).Target().Serialize();
+            if (html == null) throw new PluginMisconfigurationException("XLIFF did not contain files");
+        }
+        
         var extractedPageId = NotionHtmlParser.ExtractPageId(html);
-        var pageId = page.PageId ?? extractedPageId
-            ?? throw new("Could not extract page ID from HTML. Please provide a page ID in optional input");
+        var pageId = 
+            input.ContentId ?? 
+            extractedPageId ?? 
+            throw new PluginMisconfigurationException("Could not extract page ID from a file. Please provide a page ID in optional input");
 
         var actions = new BlockActions(InvocationContext);
         var children = await actions.ListBlockChildren(new()
@@ -330,7 +339,8 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             .Where(id => !string.IsNullOrEmpty(id))
             .Select(id => GetPage(new() { PageId = id })) ?? [];
 
-        return new(await Task.WhenAll(relatedPagesTasks));
+        var results = await Task.WhenAll(relatedPagesTasks);
+        return new(results.ToList());
     }
 
     #endregion

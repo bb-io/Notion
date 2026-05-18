@@ -1,6 +1,5 @@
 using Apps.NotionOAuth.Api;
 using Apps.NotionOAuth.Constants;
-using Apps.NotionOAuth.Extensions;
 using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.Models.Request;
@@ -77,7 +76,7 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
             .Where(x => input.PropertiesShouldHaveValue is null || input.PropertiesShouldHaveValue.All(x.PagePropertyHasValue))
             .Where(x => input.PropertiesWithoutValues is null || input.PropertiesWithoutValues.All(y => !x.PagePropertyHasValue(y)))
             .Select(x => new PageEntity(x))
-            .ToArray();
+            .ToList();
 
         return new(pages);
     }

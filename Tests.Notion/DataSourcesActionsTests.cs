@@ -1,5 +1,4 @@
 ﻿using Apps.NotionOAuth.Actions;
-using Apps.NotionOAuth.DataSourceHandlers;
 using Apps.NotionOAuth.Models.Request.DataBase;
 using Apps.NotionOAuth.Models.Request.DataSource;
 using Apps.NotionOAuth.Models.Response.Page;
@@ -29,11 +28,11 @@ public class DataSourcesActionsTests : TestBase
         // Assert
         Assert.IsNotNull(result);
         Assert.IsInstanceOfType(result, typeof(ListPagesResponse));
-        Assert.IsTrue(result.Pages.Length > 0, "Expected at least one page matching the filter.");
+        Assert.IsTrue(result.Items.Count > 0, "Expected at least one page matching the filter.");
 
-        foreach (var page in result.Pages)
+        foreach (var page in result.Items)
         {
-            Console.WriteLine($"Page ID: {page.Id}, Created Time: {page.CreatedTime}, Last Edited Time: {page.LastEditedTime}");
+            Console.WriteLine($"Page ID: {page.ContentId}, Created Time: {page.CreatedTime}, Last Edited Time: {page.LastEditedTime}");
         }
     }
 }

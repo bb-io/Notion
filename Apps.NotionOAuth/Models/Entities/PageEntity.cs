@@ -2,14 +2,15 @@ using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models.Response;
 using Apps.NotionOAuth.Models.Response.Page;
 using Apps.NotionOAuth.Utils;
+using Blackbird.Applications.SDK.Blueprints.Interfaces.CMS;
 using Blackbird.Applications.Sdk.Common;
 using Newtonsoft.Json.Linq;
 
 namespace Apps.NotionOAuth.Models.Entities;
 
-public class PageEntity
+public class PageEntity : IDownloadContentInput
 {
-    [Display("Page ID")] public string Id { get; set; }
+    [Display("Page ID")] public string ContentId { get; set; }
 
     [Display("Created time")] public DateTime? CreatedTime { get; set; }
 
@@ -27,7 +28,7 @@ public class PageEntity
 
     public PageEntity(PageResponse response)
     {
-        Id = response.Id;
+        ContentId = response.Id;
         CreatedTime = response.CreatedTime;
         LastEditedTime = response.LastEditedTime;
         Parent = response.Parent ?? new ParentEntity { };

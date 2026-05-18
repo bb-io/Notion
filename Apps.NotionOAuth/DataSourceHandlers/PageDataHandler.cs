@@ -15,7 +15,7 @@ public class PageDataHandler(InvocationContext invocationContext)
         return items
             .Select(x => new PageEntity(x))
             .OrderByDescending(x => x.CreatedTime)
-            .DistinctBy(x => x.Id)
-            .Select(x =>new DataSourceItem(x.Id, x.Title));
+            .DistinctBy(x => x.ContentId)
+            .Select(x =>new DataSourceItem(x.ContentId, x.Title));
     }
 }

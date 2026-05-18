@@ -63,7 +63,7 @@ public class DataSourcesActions(InvocationContext invocationContext) : NotionInv
             .Where(x => searchRequest.PropertiesShouldHaveValue is null || searchRequest.PropertiesShouldHaveValue.All(x.PagePropertyHasValue))
             .Where(x => searchRequest.PropertiesWithoutValues is null || searchRequest.PropertiesWithoutValues.All(y => !x.PagePropertyHasValue(y)))
             .Select(x => new PageEntity(x))
-            .ToArray();
+            .ToList();
 
         return new(pages);
     }

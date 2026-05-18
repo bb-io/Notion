@@ -49,8 +49,8 @@ Before you can connect you need to make sure that:
 ### Pages
 
 - **Search pages** returns a list of all pages in the workspace. You can filter the list by create/edited time.
-- **Get page as HTML** returns the specified page’s content as an HTML file. Please note that if your page embeds a database (and you specified 'Include child databases' to true) with more than one data source, this action will fail. If you need this functionality, please contact Blackbird support, and we will consider adding it.
-- **Create/Update page from HTML** creates/updates a page from an HTML file. We recommend using the 'Create page from HTML' action, as it doesn't affect existing content. On the other hand, the 'Update page from HTML' action does affect existing content. Since Notion doesn't allow updating blocks directly, it will first delete all the content of the page and then add it from the HTML file.
+- **Download page content** returns the specified page’s content as an HTML file. Please note that if your page embeds a database (and you specified 'Include child databases' to true) with more than one data source, this action will fail. If you need this functionality, please contact Blackbird support, and we will consider adding it.
+- **Create page from HTML/Upload page content** creates/updates a page from a file. We recommend using the 'Create page from HTML' action, as it doesn't affect existing content. On the other hand, the 'Upload page content' action does affect existing content. Since Notion doesn't allow updating blocks directly, it will first delete all the content of the page and then add it from the HTML file.
 - **Get page string/number/date/boolean/files/multiple property** returns the value of a database entry's property of specific type.
 - **Set page string/number/boolean/files/multiple property** updates the value of a database entry's property of specific type.
 - **Get pages related via property** returns a list of pages related to the specified page via a relation property. Note, that Blackbird must have access to the database where the relation property is defined, otherwise Notion API returns empty results.
