@@ -84,9 +84,9 @@ public class PageActionsTests : TestBase
 
         // Assert
         Console.WriteLine($"Related pages:");
-        foreach (var page in pages.Pages)
+        foreach (var page in pages.Items)
         {
-            Console.WriteLine($"{page.Id}: {page.Title}");
+            Console.WriteLine($"{page.ContentId}: {page.Title}");
         }
     }
 
@@ -118,19 +118,16 @@ public class PageActionsTests : TestBase
     {
         // Arrange
         var pageId = "3193f415-6cdc-81cb-94e0-e24d21ab0ba6";
-        var pageRequest = new PageRequest
+        var input = new GetPageAsHtmlRequest
         {
-            PageId = pageId
-        };
-        var htmlRequest = new GetPageAsHtmlRequest()
-        {
+            ContentId = pageId,
         };
 
         // Act
-        var result = await _actions.GetPageAsHtml(pageRequest, htmlRequest);
+        var result = await _actions.GetPageAsHtml(input);
 
         // Assert
-        Console.WriteLine($"HTML file name: {result.File.Name}, Size: {result.File.Size} bytes");
+        Console.WriteLine($"HTML file name: {result.Content.Name}, Size: {result.Content.Size} bytes");
     }
 
     [TestMethod]
@@ -163,19 +160,14 @@ public class PageActionsTests : TestBase
     {
         // Arrange
         var htmlFileName = "2e6efdee-ad05-8076-9461-cbba4a2d8056_en.html";
-
-        var pageRequest = new PageOptionalRequest
+        var input = new UpdatePageFromHtmlRequest
         {
-            PageId = "2e903abb-8136-812e-9802-cba57766ce53",
+            Content = new FileReference { Name = htmlFileName, ContentType = "text/html" },
+            ContentId = "2e903abb-8136-812e-9802-cba57766ce53",
         };
-
-        var fileRequest = new FileRequest
-        {
-            File = new FileReference { Name = htmlFileName, ContentType = "text/html" }
-        };
-
+        
         // Act
-        await _actions.UpdatePageFromHtml(pageRequest, fileRequest);
+        await _actions.UpdatePageFromHtml(input);
 
         // Assert
         Console.WriteLine($"Successfully created page with HTML from {htmlFileName}");

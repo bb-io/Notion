@@ -49,11 +49,11 @@ public class DatabaseActionsTests : TestBase
         // Assert
         Assert.IsNotNull(result);
         Assert.IsInstanceOfType(result, typeof(ListPagesResponse));
-        Assert.IsTrue(result.Pages.Length > 0, "Expected at least one page matching the filter.");
+        Assert.IsTrue(result.Items.Count > 0, "Expected at least one page matching the filter.");
 
-        foreach (var page in result.Pages)
+        foreach (var page in result.Items)
         {
-            Console.WriteLine($"Page ID: {page.Id}, Created Time: {page.CreatedTime}, Last Edited Time: {page.LastEditedTime}");
+            Console.WriteLine($"Page ID: {page.ContentId}, Created Time: {page.CreatedTime}, Last Edited Time: {page.LastEditedTime}");
         }
     }
     
@@ -75,15 +75,15 @@ public class DatabaseActionsTests : TestBase
 
         // Assert
         Console.WriteLine($"Pages found:");
-        foreach (var page in response.Pages)
+        foreach (var page in response.Items)
         {
-            Console.WriteLine($"{page.Id}: {page.Title}");
+            Console.WriteLine($"{page.ContentId}: {page.Title}");
         }
 
         Console.WriteLine($"First page:");
         Console.WriteLine(JsonConvert.SerializeObject(response, Formatting.Indented));
 
-        Assert.IsTrue(response.Pages.Length > 0, "Expected at least one page in the response.");
+        Assert.IsTrue(response.Items.Count > 0, "Expected at least one page in the response.");
     }
 
     [TestMethod]

@@ -8,10 +8,10 @@ using System.Net;
 
 namespace Apps.NotionOAuth.CallbackEvents;
 
-[WebhookList]
+[WebhookList("Automations")]
 public class CallbackEvents
 {
-    [Webhook("On button clicked", Description = "Triggered when you click a button on a Notion page. See")]
+    [Webhook("On button clicked", Description = "Triggered when you click a button on a Notion page")]
     public Task<WebhookResponse<ButtonClickedResponse>> OrderDeleted(
         WebhookRequest webhookRequest,
         [WebhookParameter, Display("Custom header key")] string? filterHeaderName,
