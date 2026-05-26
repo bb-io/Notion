@@ -276,6 +276,31 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         };
     }
 
+    [Action("Get page formula property", Description = "Get computed value of a formula page property")]
+    public async Task<FormulaPropertyResponse> GetFormulaProperty([ActionParameter] PageFormulaPropertyRequest input)
+    {
+        var response = await GetPageProperty(input.PageId, input.PropertyId);
+
+        if ((string?)response["type"] != DatabasePropertyTypes.Formula)
+        {
+            throw new PluginApplicationException("Given ID does not stand for a formula value property");
+        }
+
+        var formula = response["formula"];
+        var resultType = (string?)formula?["type"]
+            ?? throw new PluginApplicationException("Formula property response does not contain a result type");
+
+        return new FormulaPropertyResponse
+        {
+            ResultType = resultType,
+            PropertyValue = PagePropertyParser.ToString(response),
+            StringValue = resultType == "string" ? (string?)formula?["string"] : null,
+            NumberValue = resultType == "number" ? formula?["number"]?.ToObject<decimal?>() : null,
+            BooleanValue = resultType == "boolean" ? formula?["boolean"]?.ToObject<bool?>() : null,
+            DateValue = resultType == "date" ? ReadDateStart(formula?["date"]) : null
+        };
+    }
+
     [Action("Get page files property", Description = "Get value of a files page property")]
     public async Task<FilesPropertyResponse> GetFilesProperty([ActionParameter] PageFilesPropertyRequest input)
     {
