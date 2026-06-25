@@ -40,6 +40,14 @@ Before you can connect you need to make sure that:
 - **Search comments** returns a list of comments added to the specified `Block`.
 - **Add comment** adds comment to a specified `Page` or `Discussion`.
 
+> You can mention users in comments in two ways:
+>
+> 1. Use **Mentioned user IDs** in the **Add comment** action. These mentions will be appended to the end of the comment.
+> 2. Use the **Mention user** output returned by **Search users** or **Get user** and insert that token anywhere inside the comment text.
+>
+> Example inline mention token:
+> `<mention-user url="user_id">User Name</mention-user>`
+
 ### Databases
 
 - **Search databases** returns a list of all databases in the workspace. You can filter the list by create/edited time.
@@ -63,7 +71,9 @@ Before you can connect you need to make sure that:
 ### Users
 
 - **Search users** returns a list of users belonging to the workspace.
-- **Get users** returns details about specified user.
+- **Get user** returns details about specified user.
+
+> Both actions return a **Mention user** value that can be inserted into comment text for inline mentions.
 
 ### Glossaries
 
