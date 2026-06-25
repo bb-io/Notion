@@ -13,10 +13,30 @@ public class CommentActionsTests : TestBase
     public async Task AddComment_IsSuccess()
     {
         // Arrange
+        // Fill in the page ID before running this integration test.
         var input = new AddCommentInput
         {
-            PageId = "3193f415-6cdc-800a-a050-fa6633ade1d0",
+            PageId = "",
             Text = new string('B', 2500) + Guid.NewGuid().ToString(),
+        };
+
+        // Act
+        var response = await Actions.AddComment(input);
+
+        // Assert
+        PrintJsonResult(response);
+        Assert.IsNotNull(response);
+    }
+
+    [TestMethod]
+    public async Task AddCommentWithMention_IsSuccess()
+    {
+        // Arrange
+        // Fill in the page ID and mentioned user token before running this integration test.
+        var input = new AddCommentInput
+        {
+            PageId = "",
+            Text = "Please review <mention-user url=\"\">User Name</mention-user> this update"
         };
 
         // Act

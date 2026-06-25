@@ -9,6 +9,11 @@ public class UserEntity
 
     public string Name { get; set; }
 
+    [Display("Mention user")]
+    public string MentionUser => string.IsNullOrWhiteSpace(Id)
+        ? string.Empty
+        : $"<mention-user url=\"{Id}\">{Name}</mention-user>";
+
     [Display("Avatar URL")] public string? AvatarUrl { get; set; }
 
     public string? Email { get; set; }

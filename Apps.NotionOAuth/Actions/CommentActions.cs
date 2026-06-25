@@ -32,8 +32,14 @@ public class CommentActions(InvocationContext invocationContext) : NotionInvocab
     [Action("Add comment", Description = "Add a new comment")]
     public async Task<CommentEntity> AddComment([ActionParameter] AddCommentInput input)
     {
-        if (input.PageId is null && input.DiscussionId is null)
+        var hasPageId = !string.IsNullOrWhiteSpace(input.PageId);
+        var hasDiscussionId = !string.IsNullOrWhiteSpace(input.DiscussionId);
+
+        if (!hasPageId && !hasDiscussionId)
             throw new("You must specify one: either page ID or discussion ID");
+
+        if (hasPageId && hasDiscussionId)
+            throw new("You must specify only one: either page ID or discussion ID");
                 
         var request = new NotionRequest(ApiEndpoints.Comments, Method.Post, Creds)
             .WithJsonBody(new AddCommentRequest(input), JsonConfig.Settings);
