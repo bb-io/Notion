@@ -32,12 +32,11 @@ public class CommentActionsTests : TestBase
     public async Task AddCommentWithMention_IsSuccess()
     {
         // Arrange
-        // Fill in the page ID and mentioned user ID before running this integration test.
+        // Fill in the page ID and mentioned user token before running this integration test.
         var input = new AddCommentInput
         {
             PageId = "",
-            Text = "Please review this update",
-            MentionedUserIds = new[] { "" }
+            Text = "Please review <mention-user url=\"\">User Name</mention-user> this update"
         };
 
         // Act
