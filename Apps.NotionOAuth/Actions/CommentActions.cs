@@ -7,6 +7,7 @@ using Apps.NotionOAuth.Models.Request.Comment;
 using Apps.NotionOAuth.Models.Response.Comment;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Utils.Extensions.Http;
 using Blackbird.Applications.Sdk.Utils.Extensions.String;
@@ -36,10 +37,10 @@ public class CommentActions(InvocationContext invocationContext) : NotionInvocab
         var hasDiscussionId = !string.IsNullOrWhiteSpace(input.DiscussionId);
 
         if (!hasPageId && !hasDiscussionId)
-            throw new("You must specify one: either page ID or discussion ID");
+            throw new PluginMisconfigurationException("You must specify one: either page ID or discussion ID");
 
         if (hasPageId && hasDiscussionId)
-            throw new("You must specify only one: either page ID or discussion ID");
+            throw new PluginMisconfigurationException("You must specify only one: either page ID or discussion ID");
                 
         var request = new NotionRequest(ApiEndpoints.Comments, Method.Post, Creds)
             .WithJsonBody(new AddCommentRequest(input), JsonConfig.Settings);
