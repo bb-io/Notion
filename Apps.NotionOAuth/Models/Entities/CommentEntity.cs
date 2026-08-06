@@ -8,7 +8,7 @@ public class CommentEntity
     [Display("Comment ID")]
     public string Id { get; set; }
 
-    [Display("Page ID")]
+    [Display("Parent page ID")]
     public string? PageId { get; set; }
 
     [Display("Discussion ID")]
