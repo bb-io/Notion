@@ -10,6 +10,7 @@ using Apps.NotionOAuth.Models.Response.Page;
 using Apps.NotionOAuth.Utils;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Utils.Extensions.Http;
 using Newtonsoft.Json.Linq;
@@ -43,7 +44,8 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
         if(input.FilterProperty != null && input.FilterPropertyType != null)
         {
             if(input.FilterValue == null && input.FilterValueIsEmpty == null)
-                throw new("'Filter value' or 'Filter value must be empty' must be provided");
+                throw new PluginMisconfigurationException(
+                    "'Filter value' or 'Filter value must be empty' must be provided");
             
             var filterValueDict = new Dictionary<string, object>();
             
@@ -147,7 +149,8 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
 
         var match = db.Properties.Values.FirstOrDefault(p => p.Id == propertyId);
         if (match == null)
-            throw new ArgumentException($"Property with id '{propertyId}' was not found in database schema.");
+            throw new PluginMisconfigurationException(
+                $"Property with id '{propertyId}' was not found in database schema.");
 
         return match.Type;
     }
@@ -198,7 +201,8 @@ public class DatabaseActions(InvocationContext invocationContext) : NotionInvoca
                 status = new { equals = value }
             },
 
-            _ => throw new ArgumentException($"Property type '{propertyType}' is not supported by this action.")
+            _ => throw new PluginMisconfigurationException(
+                $"Property type '{propertyType}' is not supported by this action.")
         };
     }
 

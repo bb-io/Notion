@@ -9,6 +9,7 @@ using Apps.NotionOAuth.Models.Response.Page;
 using Apps.NotionOAuth.Utils;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using RestSharp;
 
@@ -30,7 +31,8 @@ public class DataSourcesActions(InvocationContext invocationContext) : NotionInv
         if(searchRequest.FilterProperty != null && searchRequest.FilterPropertyType != null)
         {
             if(searchRequest.FilterValue == null && searchRequest.FilterValueIsEmpty == null)
-                throw new("'Filter value' or 'Filter value must be empty' must be provided");
+                throw new PluginMisconfigurationException(
+                    "'Filter value' or 'Filter value must be empty' must be provided");
             
             var filterValueDict = new Dictionary<string, object>();
             

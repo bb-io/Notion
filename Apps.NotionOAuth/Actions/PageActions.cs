@@ -230,7 +230,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         {
             DatabasePropertyTypes.Number => response["number"]!.ToObject<decimal>(),
             DatabasePropertyTypes.UniqueId => response["unique_id"]!["number"]!.ToObject<decimal>(),
-            _ => throw new ArgumentException("Given ID does not stand for a number value property")
+            _ => throw new PluginMisconfigurationException("Given ID does not stand for a number value property")
         };
 
         return new()
@@ -253,7 +253,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
                                 ? ReadDateStart(response["formula"]?["date"])
                                 : null,
             DatabasePropertyTypes.Rollup => ParseRollupDate(response["rollup"]),
-            _ => throw new PluginApplicationException("Given ID does not stand for a date value property")
+            _ => throw new PluginMisconfigurationException("Given ID does not stand for a date value property")
         };
 
         return new DatePropertyResponse { PropertyValue = value };
@@ -267,7 +267,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var value = response["type"]!.ToString() switch
         {
             DatabasePropertyTypes.Checkbox => response["checkbox"]!.ToObject<bool>(),
-            _ => throw new ArgumentException("Given ID does not stand for a date value property")
+            _ => throw new PluginMisconfigurationException("Given ID does not stand for a date value property")
         };
 
         return new()
@@ -283,7 +283,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
 
         if ((string?)response["type"] != DatabasePropertyTypes.Formula)
         {
-            throw new PluginApplicationException("Given ID does not stand for a formula value property");
+            throw new PluginMisconfigurationException("Given ID does not stand for a formula value property");
         }
 
         var formula = response["formula"];
@@ -310,7 +310,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         {
             DatabasePropertyTypes.Files => response["files"]!
                 .Select(x => x["file"]?["url"]!.ToString() ?? x["external"]!["url"]!.ToString()).ToArray(),
-            _ => throw new ArgumentException("Given ID does not stand for a date value property")
+            _ => throw new PluginMisconfigurationException("Given ID does not stand for a date value property")
         };
 
         return new()
@@ -339,13 +339,17 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
                 DatabasePropertyTypes.MultiSelect => response["multi_select"]!.Select(x => x["name"]!.ToString()),
                 DatabasePropertyTypes.Relation => response["results"]!.Select(x => x["relation"]!["id"]!.ToString()),
                 DatabasePropertyTypes.People => response["results"]!.Select(x => x["people"]!["id"]!.ToString()),
-                _ => throw new ArgumentException("Given ID does not stand for a multi select")
+                _ => throw new PluginMisconfigurationException("Given ID does not stand for a multi select")
             };
 
             return new()
             {
                 PropertyValue = value ?? Enumerable.Empty<string>()
             };
+        }
+        catch (PluginMisconfigurationException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -387,7 +391,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             DatabasePropertyTypes.Select => PagePropertyPayloadFactory.GetSelect(input.Value),
             DatabasePropertyTypes.RichText => PagePropertyPayloadFactory.GetRichText(input.Value),
             DatabasePropertyTypes.Relation => PagePropertyPayloadFactory.GetRelation(input.Value),
-            _ => throw new ArgumentException("Given ID does not stand for a string value property")
+            _ => throw new PluginMisconfigurationException("Given ID does not stand for a string value property")
         };
 
         await UpdatePageProperty(input.PageId, name, payload);
@@ -425,7 +429,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var payload = property["type"]!.ToString() switch
         {
             DatabasePropertyTypes.Checkbox => PagePropertyPayloadFactory.GetCheckbox(input.Value),
-            _ => throw new ArgumentException("Given ID does not stand for a string value property")
+            _ => throw new PluginMisconfigurationException("Given ID does not stand for a string value property")
         };
 
         await UpdatePageProperty(input.PageId, name, payload);
@@ -449,7 +453,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
             DatabasePropertyTypes.MultiSelect => PagePropertyPayloadFactory.GetMultiSelect(newValues),
             DatabasePropertyTypes.Relation => PagePropertyPayloadFactory.GetRelation(newValues),
             DatabasePropertyTypes.People => PagePropertyPayloadFactory.GetPeople(newValues),
-            _ => throw new ArgumentException("Given ID does not stand for a string value property")
+            _ => throw new PluginMisconfigurationException("Given ID does not stand for a string value property")
         };
 
         await UpdatePageProperty(input.PageId, name, payload);
@@ -463,7 +467,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var payload = property["type"]!.ToString() switch
         {
             DatabasePropertyTypes.Files => PagePropertyPayloadFactory.GetFiles(input.Values),
-            _ => throw new ArgumentException("Given ID does not stand for a string value property")
+            _ => throw new PluginMisconfigurationException("Given ID does not stand for a string value property")
         };
 
         await UpdatePageProperty(input.PageId, name, payload);
@@ -477,7 +481,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
         var payload = property["type"]!.ToString() switch
         {
             DatabasePropertyTypes.Date => PagePropertyPayloadFactory.GetDate(input.Date, input.EndDate, input.IncludeTime),
-            _ => throw new ArgumentException("Given ID does not stand for a date value property")
+            _ => throw new PluginMisconfigurationException("Given ID does not stand for a date value property")
         };
 
         await UpdatePageProperty(input.PageId, name, payload);
@@ -533,7 +537,7 @@ public class PageActions(InvocationContext invocationContext, IFileManagementCli
     {
         if (string.IsNullOrEmpty(blockId))
         {
-            throw new ArgumentException("Block ID cannot be null or empty.", nameof(blockId));
+            throw new PluginMisconfigurationException("Block ID cannot be null or empty.");
         }
 
         var endpoint = $"{ApiEndpoints.Blocks}/{blockId}/children";

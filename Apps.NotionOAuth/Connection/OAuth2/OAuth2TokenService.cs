@@ -4,6 +4,7 @@ using Apps.NotionOAuth.Api;
 using Apps.NotionOAuth.Constants;
 using Newtonsoft.Json;
 using Blackbird.Applications.Sdk.Common;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using System.Text;
 
@@ -20,7 +21,7 @@ public class OAuth2TokenService(InvocationContext invocationContext)
     public Task<Dictionary<string, string>> RefreshToken(Dictionary<string, string> values,
         CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        throw new PluginApplicationException("Notion OAuth does not support token refresh.");
     }
 
     public Task<Dictionary<string, string>> RequestToken(
@@ -66,6 +67,6 @@ public class OAuth2TokenService(InvocationContext invocationContext)
 
         return JsonConvert.DeserializeObject<Dictionary<string, object>>(responseContent)
                    ?.ToDictionary(r => r.Key, r => r.Value?.ToString() ?? string.Empty)
-               ?? throw new InvalidOperationException($"Invalid response content: {responseContent}");
+               ?? throw new PluginApplicationException($"Invalid response content: {responseContent}");
     }
 }

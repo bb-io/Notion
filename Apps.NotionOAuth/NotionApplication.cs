@@ -1,6 +1,7 @@
 ﻿using Apps.NotionOAuth.Connections.OAuth2;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication.OAuth2;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Common.Metadata;
 
@@ -38,7 +39,7 @@ public class NotionApplication : BaseInvocable, IApplication, ICategoryProvider
     {
         if (!_typesInstances.TryGetValue(typeof(T), out var value))
         {
-            throw new InvalidOperationException($"Instance of type '{typeof(T)}' not found");
+            throw new PluginApplicationException($"Instance of type '{typeof(T)}' not found");
         }
 
         return (T)value;
