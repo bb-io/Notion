@@ -4,6 +4,7 @@ using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Response.DataBase;
 using Apps.NotionOAuth.Models.Response.Page;
 using Blackbird.Applications.Sdk.Common.Dynamic;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using RestSharp;
 
@@ -21,7 +22,7 @@ public abstract class PagePropertiesDataHandler(InvocationContext invocationCont
     {
         if (string.IsNullOrWhiteSpace(DataBaseId) && string.IsNullOrWhiteSpace(PageId))
         {
-            throw new InvalidOperationException("Please provide either a Database ID or Page ID.");
+            throw new PluginMisconfigurationException("Please provide either a Database ID or Page ID.");
         }
 
         var pageProperties = string.IsNullOrEmpty(PageId)

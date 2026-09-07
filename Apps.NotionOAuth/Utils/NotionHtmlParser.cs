@@ -168,7 +168,7 @@ public static class NotionHtmlParser
 
         if (parentContainer == null)
         {
-            throw new Exception($"Parent container not found for block type {parentType}");
+            throw new PluginApplicationException($"Parent container not found for block type {parentType}");
         }
 
         if (parentContainer["children"] == null)
@@ -296,7 +296,7 @@ public static class NotionHtmlParser
 
             if (string.IsNullOrEmpty(type) && string.IsNullOrEmpty(objectType))
             {
-                throw new Exception(
+                throw new PluginApplicationException(
                     "Block and object types are missing. Probably the block is not a valid Notion block. Please send this error to support team.");
             }
 
@@ -763,7 +763,7 @@ public static class NotionHtmlParser
 
                     var type = propertyToUpdate["type"]!.ToString();
                     var typeElement = propertyToUpdate[type]?.ToObject<List<JObject>>()?.FirstOrDefault()
-                                      ?? throw new Exception(
+                                      ?? throw new PluginApplicationException(
                                           $"Couldn't find any editable element for json: {JsonConvert.SerializeObject(propertyToUpdate, Formatting.Indented)}");
 
                     var typeOfTextElement = typeElement["type"]!.ToString();
@@ -886,7 +886,7 @@ public static class NotionHtmlParser
             if (parentType != "page_id" && parentType != "database_id")
             {
                 string blockName = GetBlockName(block);
-                throw new PluginApplicationException(
+                throw new PluginMisconfigurationException(
                     $"Pages and databases cannot be nested inside other blocks. Page or database ('{blockName}') has parent type '{parentType}'. Please move it to the root level.");
             }
         }

@@ -98,7 +98,7 @@ public class GlossaryActions(InvocationContext invocationContext, IFileManagemen
                 .FirstOrDefault(p => p["id"]?.ToString() == "title")?
                 .SelectToken("title[0].plain_text")?
                 .ToString()
-                ?? throw new Exception("[Download glossary] Page title was not found.");
+                ?? throw new PluginApplicationException("[Download glossary] Page title was not found.");
             var title = XmlHelper.SanitizeForXml(rawTitle);
 
             var sourceTerm = new GlossaryTermSection(title);

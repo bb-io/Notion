@@ -3,6 +3,7 @@ using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Response;
 using Blackbird.Applications.Sdk.Common.Dynamic;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Newtonsoft.Json.Linq;
 using RestSharp;
@@ -24,7 +25,8 @@ public abstract class DatabasePropertiesDataHandler(InvocationContext invocation
         else if (!string.IsNullOrWhiteSpace(DataSourceId))
             request = new NotionRequest($"{ApiEndpoints.DataSources}/{DataSourceId}", Method.Get, Creds, ApiConstants.LatestApiVersion);
         else
-            throw new Exception("Please provide 'Database ID' or 'Datasource ID' input first.");
+            throw new PluginMisconfigurationException(
+                "Please provide 'Database ID' or 'Datasource ID' input first.");
 
         var response = await Client.ExecuteWithErrorHandling<PropertiesResponse>(request);
 

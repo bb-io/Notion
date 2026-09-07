@@ -1,5 +1,6 @@
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -23,7 +24,7 @@ public static class JObjectExtensions
             DatabasePropertyTypes.LastEditedBy => obj["last_edited_by"]!["id"]!.ToString(),
             DatabasePropertyTypes.Select => obj["select"]!["name"]!.ToString(),
             DatabasePropertyTypes.RichText => obj["rich_text"]!.ToObject<TitleModel>()!.PlainText,
-            _ => throw new ArgumentException("Given property is not of type string")
+            _ => throw new PluginMisconfigurationException("Given property is not of type string")
         };
     }
 

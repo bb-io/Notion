@@ -1,5 +1,6 @@
 ﻿using Apps.NotionOAuth.Models.Response.Page;
 using Newtonsoft.Json.Linq;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 
 namespace Apps.NotionOAuth.Utils;
 
@@ -7,7 +8,7 @@ public static class PageResponseExtensions
 {
     public static bool FilterCheckboxProperty(this PageResponse pageResponse, string inputCheckboxProperty)
     {
-        var propertyData = inputCheckboxProperty.Split(';');
+        var propertyData = ParsePropertyFilter(inputCheckboxProperty);
 
         var propertyId = propertyData[0];
         var propertyValue = propertyData[1];
@@ -21,7 +22,8 @@ public static class PageResponseExtensions
         KeyValuePair<string, JObject>? propertyPair =
             page.Properties.FirstOrDefault(x => x.Value["id"].ToString() == propertyId);
 
-        var property = propertyPair?.Value ?? throw new("No property found with the provided ID");
+        var property = propertyPair?.Value
+            ?? throw new PluginMisconfigurationException("No property found with the provided ID");
         var propertyType = property["type"].ToString();
 
         return propertyType switch
@@ -36,12 +38,24 @@ public static class PageResponseExtensions
     
     public static bool FilterSelectProperty(this PageResponse pageResponse, string inputSelectProperty)
     {
-        var propertyData = inputSelectProperty.Split(';');
+        var propertyData = ParsePropertyFilter(inputSelectProperty);
 
         var propertyId = propertyData[0];
         var propertyValue = propertyData[1];
 
         return pageResponse.Properties.Any(x =>
             x.Value["id"]!.ToString() == propertyId && x.Value.SelectToken("select.name")?.ToString() == propertyValue);
+    }
+
+    private static string[] ParsePropertyFilter(string input)
+    {
+        var propertyData = input.Split(';', 2);
+        if (propertyData.Length != 2)
+        {
+            throw new PluginMisconfigurationException(
+                "Property filter must contain a property ID and value separated by ';'.");
+        }
+
+        return propertyData;
     }
 }

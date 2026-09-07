@@ -170,7 +170,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
                 var dbParentPageId = containerKind == ContainerType.Page
                     ? containerId
                     : nearestPageIdForDatabaseCreation
-                      ?? throw new InvalidOperationException(
+                      ?? throw new PluginApplicationException(
                           "Cannot create a database in database context because there is no page parent to promote to.");
 
                 var createdDbId = await CreatePromotedDatabaseIdAsync(childObj, dbParentPageId);
@@ -247,7 +247,7 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
     private async Task<string> CreatePromotedDatabaseIdAsync(JObject databaseBlock, string parentPageId)
     {
         var children = databaseBlock["children"]?.ToObject<JObject[]>()
-                       ?? throw new InvalidOperationException("Child database must have children");
+                       ?? throw new PluginApplicationException("Child database must have children");
 
         databaseBlock.Remove("children");
 
@@ -349,14 +349,14 @@ public class BlockActions(InvocationContext invocationContext) : NotionInvocable
         foreach (var database in blockChunk)
         {
             var children = database["children"]?.ToObject<JObject[]>()
-                           ?? throw new InvalidOperationException("Child database must have children");
+                           ?? throw new PluginApplicationException("Child database must have children");
 
             database.Remove("children");
 
             var parentPageId = kind == ContainerType.Page
                 ? containerId
                 : nearestPageIdForDatabaseCreation
-                  ?? throw new InvalidOperationException("Databases must have a page parent to be created.");
+                  ?? throw new PluginApplicationException("Databases must have a page parent to be created.");
 
             database["parent"] = new JObject
             {
