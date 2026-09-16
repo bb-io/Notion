@@ -1,7 +1,6 @@
 ﻿using Apps.NotionOAuth.Actions;
 using Apps.NotionOAuth.Models.Request.DataBase;
 using Apps.NotionOAuth.Models.Request.DataSource;
-using Apps.NotionOAuth.Models.Request.View;
 using Apps.NotionOAuth.Models.Response.Page;
 using Tests.Notion.Base;
 
@@ -19,15 +18,17 @@ public class DataSourcesActionsTests : TestBase
         {
             DataSourceId = "b2e5c99e-5904-4ed4-91f5-fc049d6c60bc"
         };
-        var database = new OptionalDatabaseRequest();
-        var searchInput = new SearchPagesInDataSourceRequest();
-        var optionalViewInput = new OptionalViewRequest
+        var database = new DatabaseRequest
         {
-            ViewId = "244a9644-cf02-8031-a30a-000c12539afb"
+            
+        };
+        var searchInput = new SearchPagesInDataSourceRequest
+        {
+            
         };
 
         // Act
-        var result = await action.SearchPagesInDatasource(input, database, searchInput, optionalViewInput);
+        var result = await action.SearchPagesInDatasource(input, database, searchInput);
 
         // Assert
         Assert.IsNotNull(result);

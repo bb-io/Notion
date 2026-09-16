@@ -25,13 +25,12 @@ public class DataSourcesActions(InvocationContext invocationContext) : NotionInv
     [Action("Search pages in datasource", Description = "Search pages in a specific datasource")]
     public async Task<ListPagesResponse> SearchPagesInDatasource(
         [ActionParameter] DataSourceRequest dataSourceRequest,
-        [ActionParameter] OptionalDatabaseRequest databaseInput,    //  For data handler
-        [ActionParameter] SearchPagesInDataSourceRequest searchRequest,
-        [ActionParameter] OptionalViewRequest viewRequest)
+        [ActionParameter] DatabaseRequest databaseInput,    //  For data handler
+        [ActionParameter] SearchPagesInDataSourceRequest searchRequest)
     {
-        var viewPageIds = string.IsNullOrEmpty(viewRequest.ViewId)
+        var viewPageIds = string.IsNullOrEmpty(searchRequest.ViewId)
             ? null
-            : await _viewApiExecutor.GetViewPageIds(viewRequest.ViewId);
+            : await _viewApiExecutor.GetViewPageIds(searchRequest.ViewId);
         
         var endpoint = $"{ApiEndpoints.DataSources}/{dataSourceRequest.DataSourceId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds);
