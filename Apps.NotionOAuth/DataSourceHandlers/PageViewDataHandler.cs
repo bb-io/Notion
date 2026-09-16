@@ -9,23 +9,29 @@ using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.NotionOAuth.DataSourceHandlers;
 
-// Standard ViewDataHandler does not work with pages - it sends the data source ID, but the API doesn't support it for pages.
-// But it works with just one database ID input, which is now required
-public class PageViewDataHandler(
-    InvocationContext invocationContext,
-    [ActionParameter] DatabaseRequest databaseInput) 
-    : NotionInvocable(invocationContext), IAsyncDataSourceItemHandler
+// Standard ViewDataHandler will not work here - it sends the data source ID, but the API doesn't support it for pages.
+// But it works with just one database ID input
+public class PageViewDataHandler : NotionInvocable, IAsyncDataSourceItemHandler
 {
-    private readonly ViewApiExecutor _apiExecutor = new(invocationContext);
+    private readonly ViewApiExecutor _apiExecutor;
+    private readonly string _databaseId;
 
-    public async Task<IEnumerable<DataSourceItem>> GetDataAsync(DataSourceContext context, CancellationToken ct)
+    public PageViewDataHandler(
+        InvocationContext invocationContext,
+        [ActionParameter] OptionalDatabaseRequest databaseInput) : base(invocationContext)
     {
         if (string.IsNullOrEmpty(databaseInput.DatabaseId))
             throw new PluginMisconfigurationException("Please specify the database ID input");
+        
+        _databaseId = databaseInput.DatabaseId;
+        _apiExecutor = new ViewApiExecutor(invocationContext);
+    }
 
+    public async Task<IEnumerable<DataSourceItem>> GetDataAsync(DataSourceContext context, CancellationToken ct)
+    {
         var filters = new SearchViewsFilter
         {
-            DatabaseId = databaseInput.DatabaseId,
+            DatabaseId = _databaseId,
             ViewNameContains = context.SearchString,
         };
 

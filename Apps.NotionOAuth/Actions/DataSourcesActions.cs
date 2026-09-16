@@ -25,7 +25,7 @@ public class DataSourcesActions(InvocationContext invocationContext) : NotionInv
     [Action("Search pages in datasource", Description = "Search pages in a specific datasource")]
     public async Task<ListPagesResponse> SearchPagesInDatasource(
         [ActionParameter] DataSourceRequest dataSourceRequest,
-        [ActionParameter] DatabaseRequest databaseInput,    //  For data handler
+        [ActionParameter] OptionalDatabaseRequest databaseInput,    //  For data handler
         [ActionParameter] SearchPagesInDataSourceRequest searchRequest)
     {
         var viewPageIds = string.IsNullOrEmpty(searchRequest.ViewId)

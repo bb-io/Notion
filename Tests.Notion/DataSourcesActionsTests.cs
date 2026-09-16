@@ -18,7 +18,7 @@ public class DataSourcesActionsTests : TestBase
         {
             DataSourceId = "b2e5c99e-5904-4ed4-91f5-fc049d6c60bc"
         };
-        var database = new DatabaseRequest
+        var database = new OptionalDatabaseRequest
         {
             
         };
