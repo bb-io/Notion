@@ -4,9 +4,11 @@ using Apps.NotionOAuth.Invocables;
 using Apps.NotionOAuth.Models.Entities;
 using Apps.NotionOAuth.Models.Request.DataBase;
 using Apps.NotionOAuth.Models.Request.DataSource;
+using Apps.NotionOAuth.Models.Request.View;
 using Apps.NotionOAuth.Models.Response.DataBase;
 using Apps.NotionOAuth.Models.Response.Page;
 using Apps.NotionOAuth.Utils;
+using Apps.NotionOAuth.Utils.Executor;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Exceptions;
@@ -18,12 +20,18 @@ namespace Apps.NotionOAuth.Actions;
 [ActionList("Data sources")]
 public class DataSourcesActions(InvocationContext invocationContext) : NotionInvocable(invocationContext)
 {
+    private readonly ViewApiExecutor _viewApiExecutor = new(invocationContext);
+    
     [Action("Search pages in datasource", Description = "Search pages in a specific datasource")]
     public async Task<ListPagesResponse> SearchPagesInDatasource(
         [ActionParameter] DataSourceRequest dataSourceRequest,
         [ActionParameter] OptionalDatabaseRequest databaseInput,    //  For data handler
         [ActionParameter] SearchPagesInDataSourceRequest searchRequest)
     {
+        var viewPageIds = string.IsNullOrEmpty(searchRequest.ViewId)
+            ? null
+            : await _viewApiExecutor.GetViewPageIds(searchRequest.ViewId);
+        
         var endpoint = $"{ApiEndpoints.DataSources}/{dataSourceRequest.DataSourceId}/query";
         var request = new NotionRequest(endpoint, Method.Post, Creds);
         
@@ -58,6 +66,7 @@ public class DataSourcesActions(InvocationContext invocationContext) : NotionInv
 
         var response = await Client.PaginateWithBody<PageResponse>(request, bodyDictionary);
         var pages = response
+            .Where(x => viewPageIds is null || viewPageIds.Contains(x.Id))
             .Where(x => x.LastEditedTime > (searchRequest.EditedSince ?? default))
             .Where(x => x.CreatedTime > (searchRequest.CreatedSince ?? default))
             .Where(x => searchRequest.CheckboxProperty is null || x.FilterCheckboxProperty(searchRequest.CheckboxProperty))

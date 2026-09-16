@@ -1,4 +1,5 @@
-﻿using Apps.NotionOAuth.DataSourceHandlers.DatabaseProperties;
+﻿using Apps.NotionOAuth.DataSourceHandlers;
+using Apps.NotionOAuth.DataSourceHandlers.DatabaseProperties;
 using Apps.NotionOAuth.DataSourceHandlers.EnumHandlers;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Dictionaries;
@@ -31,4 +32,7 @@ public class SearchPagesInDataSourceRequest : ListRequest
     
     [Display("Filter property type"), StaticDataSource(typeof(FilterPropertyTypeDataHandler))]
     public string? FilterPropertyType { get; set; }
+    
+    [Display("View ID"), DataSource(typeof(PageViewDataHandler))]
+    public string? ViewId { get; set; }
 }

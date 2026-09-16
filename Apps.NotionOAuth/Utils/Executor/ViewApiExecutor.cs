@@ -44,4 +44,12 @@ public class ViewApiExecutor(InvocationContext invocationContext) : NotionInvoca
 
         return fullViews;
     }
+
+    public async Task<HashSet<string>> GetViewPageIds(string viewId)
+    {
+        var queryRequest = new NotionRequest($"{ApiEndpoints.Views}/{viewId}/queries", Method.Post, Creds);
+        var results = await Client.Paginate<ViewQueryResponse>(queryRequest);
+
+        return results.Select(x => x.Id).ToHashSet();
+    }
 }
