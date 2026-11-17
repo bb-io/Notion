@@ -1,6 +1,7 @@
 using Apps.NotionOAuth.Constants;
 using Apps.NotionOAuth.Models.Request;
 using Apps.NotionOAuth.Models.Response;
+using Apps.NotionOAuth.Models.Response.View;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Utils.Extensions.Http;
@@ -124,6 +125,61 @@ public class NotionClient() : BlackBirdRestClient(new()
 
         return results;
     }
+
+    public async Task<List<T>> QueryView<T>(
+        string viewId,
+        AuthenticationCredentialsProvider[] creds)
+    {
+        var createRequest = new NotionRequest($"{ApiEndpoints.Views}/{viewId}/queries", Method.Post, creds);
+        var query = await ExecuteWithErrorHandling<CreateViewQueryResponse<T>>(createRequest);
+        var results = query.Results.ToList();
+
+        try
+        {
+            var cursor = query.NextCursor;
+            while (cursor is not null)
+            {
+                var pageRequest = new NotionRequest(
+                    $"{ApiEndpoints.Views}/{viewId}/queries/{query.Id}",
+                    Method.Get,
+                    creds);
+                pageRequest.AddQueryParameter("start_cursor", cursor);
+
+                var page = await ExecuteWithErrorHandling<PaginationResponse<T>>(pageRequest);
+                results.AddRange(page.Results);
+                cursor = page.NextCursor;
+            }
+        }
+        finally
+        {
+            await DeleteViewQuery(viewId, query.Id, creds);
+        }
+
+        return results;
+    }
+
+    private async Task DeleteViewQuery(
+        string viewId,
+        string queryId,
+        AuthenticationCredentialsProvider[] creds)
+    {
+        if (string.IsNullOrEmpty(queryId))
+            return;
+
+        try
+        {
+            var deleteRequest = new NotionRequest(
+                $"{ApiEndpoints.Views}/{viewId}/queries/{queryId}",
+                Method.Delete,
+                creds);
+            await ExecuteWithErrorHandling(deleteRequest);
+        }
+        catch
+        {
+            // Query cleanup is best-effort; cached view queries expire automatically.
+        }
+    }
+
     public override async Task<RestResponse> ExecuteWithErrorHandling(RestRequest request)
     {
         RestResponse restResponse = await ExecuteAsync(request);
