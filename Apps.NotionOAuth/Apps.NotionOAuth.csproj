@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
 	 <Product>Notion</Product>
 	 <Description>Productivity and note-taking web application</Description>
-	 <Version>1.2.34</Version>
+	 <Version>1.2.35</Version>
 	 <AssemblyName>Apps.NotionOAuth</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
@@ -19,6 +19,6 @@
   </ItemGroup>
 	<ItemGroup>
 		<EmbeddedResource CopyToOutputDirectory="Always" Include="image\icon.png" />
-		<EmbeddedResource CopyToOutputDirectory="Always" Include="..\README.md"/>
+		<EmbeddedResource Include="..\README.md" Link="README.md" CopyToOutputDirectory="Always" />
 	</ItemGroup>
 </Project>
