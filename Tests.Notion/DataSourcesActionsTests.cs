@@ -16,15 +16,15 @@ public class DataSourcesActionsTests : TestBase
         var action = new DataSourcesActions(InvocationContext);
         var input = new DataSourceRequest
         {
-            DataSourceId = "b2e5c99e-5904-4ed4-91f5-fc049d6c60bc"
+            DataSourceId = "da1c979e-627b-40c1-bc9a-6ce5b4ae3e9d"
         };
         var database = new OptionalDatabaseRequest
         {
-            
+            DatabaseId= "ebca274b-c142-4ed2-a7e8-7a3399d6d2e0"
         };
         var searchInput = new SearchPagesInDataSourceRequest
         {
-            
+            ViewId= "413a9644-cf02-80a7-b0a3-000c177e370a"
         };
 
         // Act
